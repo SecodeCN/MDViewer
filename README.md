@@ -1,5 +1,7 @@
 # MD Viewer - Markdown 阅读器
 
+在线访问（GitHub Pages）：https://<你的用户名>.github.io/MDViewer/
+
 一个美观、功能丰富的 Markdown 阅读器和编辑器。支持两种使用方式：
 
 ## ✨ 功能特点
@@ -39,6 +41,24 @@
 - ✅ 支持实时编辑和保存
 
 **要求**：需要使用支持 File System Access API 的浏览器（Chrome 86+, Edge 86+）
+
+## 🌐 GitHub Pages 在线访问（可行）
+
+可以。这个项目的“独立版”是纯前端静态页面，适合直接用 GitHub Pages 托管；但“服务器版”（`server.js`）无法在 GitHub Pages 上运行。
+
+### 开启方式（推荐）
+
+1. 打开仓库页面 → Settings → Pages
+2. **Build and deployment**：选择 **Deploy from a branch**
+3. 选择 Branch：`main`，Folder：`/ (root)`
+4. 保存后等待部署完成
+
+部署完成后访问：`https://<你的用户名>.github.io/MDViewer/`
+
+### 注意事项
+
+- GitHub Pages 只能托管静态资源：HTML/CSS/JS，不支持 Node 服务端。
+- 在线版依然需要你在浏览器里点击“打开文件夹”授权访问本地文件（这是浏览器安全机制）。
 
 ### 方式二：服务器版
 
