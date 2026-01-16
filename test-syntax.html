@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>JS Syntax Test</title>
+</head>
+<body>
+    <h1>Testing JavaScript</h1>
+    <div id="status">Loading...</div>
+    
+    <script>
+        console.log('Test script loaded');
+        document.getElementById('status').textContent = 'Script works!';
+    </script>
+    
+    <script src="public/js/standalone-app.js"></script>
+    
+    <script>
+        console.log('After standalone-app.js loaded');
+        if (typeof MDViewerStandalone !== 'undefined') {
+            document.getElementById('status').textContent = 'MDViewerStandalone loaded successfully!';
+        } else {
+            document.getElementById('status').textContent = 'ERROR: MDViewerStandalone not found!';
+            document.getElementById('status').style.color = 'red';
+        }
+    </script>
+</body>
+</html>
