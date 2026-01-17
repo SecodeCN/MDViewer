@@ -1290,8 +1290,10 @@ class MDViewerStandalone {
                     item.classList.remove('active');
                     if (item.dataset.target === currentHeading.id) {
                         item.classList.add('active');
-                        // 滚动目录面板使当前项可见
-                        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        // 只在目录面板可见时才滚动目录面板使当前项可见
+                        if (this.tocVisible) {
+                            item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
                     }
                 });
             }
