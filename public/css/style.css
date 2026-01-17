@@ -1103,7 +1103,7 @@ body {
     height: 0;
     background: var(--sidebar-bg);
     border-top: 1px solid var(--border-color);
-    display: flex;
+    display: none;
     flex-direction: column;
     transition: height 0.3s ease;
     z-index: 200;
@@ -1111,6 +1111,7 @@ body {
 }
 
 .global-search-panel.show {
+    display: flex;
     height: 300px;
 }
 

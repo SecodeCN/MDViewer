@@ -231,6 +231,16 @@ const server = http.createServer(async (req, res) => {
     
     // 静态文件服务
     let staticPath = pathname === '/' ? '/index.html' : pathname;
+    
+    // 优先检查根目录的 standalone.html
+    if (pathname === '/standalone.html') {
+        const standaloneFile = path.join(__dirname, 'standalone.html');
+        if (fs.existsSync(standaloneFile)) {
+            serveStatic(res, standaloneFile);
+            return;
+        }
+    }
+    
     const filePath = path.join(__dirname, 'public', staticPath);
     
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {

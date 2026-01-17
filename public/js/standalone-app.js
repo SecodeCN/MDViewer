@@ -114,6 +114,8 @@ class MDViewerStandalone {
                             this.directoryHandle = handle;
                             this.showToast(`已自动打开上次的文件夹: ${handle.name}`, 'success');
                             await this.loadFiles();
+                            // 自动打开上次的文件
+                            await this.restoreLastFile();
                         } else if (permission === 'prompt') {
                             // 请求权限
                             const newPermission = await handle.requestPermission(options);
@@ -121,6 +123,8 @@ class MDViewerStandalone {
                                 this.directoryHandle = handle;
                                 this.showToast(`已恢复上次的文件夹: ${handle.name}`, 'success');
                                 await this.loadFiles();
+                                // 自动打开上次的文件
+                                await this.restoreLastFile();
                             } else {
                                 console.log('用户拒绝了访问权限');
                                 this.fileTree.innerHTML = `
@@ -145,6 +149,64 @@ class MDViewerStandalone {
             });
         } catch (error) {
             console.error('恢复上次文件夹失败:', error);
+        }
+    }
+    
+    /**
+     * 恢复上次打开的文件
+     */
+    async restoreLastFile() {
+        const lastFilePath = localStorage.getItem('md-viewer-last-file');
+        if (!lastFilePath) return;
+        
+        // 等待文件树加载完成
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // 检查文件是否存在于当前打开的文件夹中
+        if (this.fileHandles.has(lastFilePath)) {
+            console.log('[Restore] 正在恢复上次打开的文件:', lastFilePath);
+            await this.loadFile(lastFilePath);
+        } else {
+            console.log('[Restore] 上次的文件不在当前文件夹中:', lastFilePath);
+        }
+    }
+    
+    /**
+     * 刷新当前文档（重新从文件系统读取）
+     */
+    async refreshCurrentFile() {
+        const currentPath = this.currentFileEl.textContent;
+        
+        if (!currentPath || currentPath === '请打开文件夹并选择 Markdown 文件') {
+            this.showToast('没有打开的文件', 'warning');
+            return;
+        }
+        
+        // 检查是否有未保存的修改
+        if (this.isModified) {
+            const confirm = window.confirm('当前文件有未保存的修改，刷新将丢失这些修改。是否继续？');
+            if (!confirm) return;
+        }
+        
+        try {
+            const fileHandle = this.fileHandles.get(currentPath);
+            if (!fileHandle) {
+                this.showToast('文件句柄未找到', 'error');
+                return;
+            }
+            
+            // 重新读取文件内容
+            const file = await fileHandle.getFile();
+            const content = await this.decodeFileContent(file);
+            
+            this.currentContent = content;
+            this.isModified = false;
+            this.editor.value = content;
+            this.updatePreview();
+            
+            this.showToast('文档已刷新', 'success');
+        } catch (error) {
+            this.showToast('刷新文件失败: ' + error.message, 'error');
         }
     }
     
@@ -663,6 +725,14 @@ class MDViewerStandalone {
             }
         });
         
+        // 刷新当前文档
+        const refreshFileBtn = document.getElementById('refreshFileBtn');
+        if (refreshFileBtn) {
+            refreshFileBtn.addEventListener('click', () => {
+                this.refreshCurrentFile();
+            });
+        }
+        
         // 搜索
         this.searchInput.addEventListener('input', (e) => {
             this.filterFiles(e.target.value);
@@ -691,6 +761,14 @@ class MDViewerStandalone {
                     e.preventDefault();
                     this.toggleGlobalSearch();
                 }
+            }
+            // F5 刷新当前文档（阻止浏览器默认刷新）
+            if (e.key === 'F5') {
+                if (this.currentFileHandle) {
+                    e.preventDefault();
+                    this.refreshCurrentFile();
+                }
+                // 如果没有打开文件，则允许浏览器默认刷新
             }
             // ESC 关闭查找面板
             if (e.key === 'Escape' && this.globalSearchPanel && this.globalSearchPanel.classList.contains('show')) {
@@ -1105,6 +1183,9 @@ class MDViewerStandalone {
             this.editor.value = content;
             this.updatePreview();
             
+            // 保存上次打开的文件路径（用于F5刷新后恢复）
+            localStorage.setItem('md-viewer-last-file', filePath);
+            
             // 更新文件树选中状态
             this.fileTree.querySelectorAll('.tree-item-content').forEach(el => {
                 el.classList.remove('active');
@@ -1116,6 +1197,12 @@ class MDViewerStandalone {
             
             this.welcomePage.style.display = 'none';
             this.setViewMode(this.viewMode);
+            
+            // 显示刷新按钮
+            const refreshBtn = document.getElementById('refreshFileBtn');
+            if (refreshBtn) {
+                refreshBtn.style.display = '';
+            }
             
             this.showToast('文件已打开', 'success');
         } catch (error) {
@@ -1192,6 +1279,9 @@ class MDViewerStandalone {
             hljs.highlightElement(block);
         });
         
+        // 处理本地 .md 文件链接的点击
+        this.bindMdLinkHandlers();
+        
         // 渲染 Mermaid 图表
         if (typeof mermaid !== 'undefined') {
             const mermaidElements = this.preview.querySelectorAll('.mermaid');
@@ -1237,6 +1327,122 @@ class MDViewerStandalone {
         this.updateToc();
     }
     
+    // ==================== 本地文档链接跳转功能 ====================
+    
+    /**
+     * 绑定本地 .md 文件链接的点击事件处理器
+     * 拦截相对路径的 .md 链接，在应用内跳转
+     */
+    bindMdLinkHandlers() {
+        // 查找所有指向 .md 文件的链接（排除外部链接）
+        const mdLinks = this.preview.querySelectorAll('a[href$=".md"], a[href$=".markdown"]');
+        
+        mdLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            
+            // 跳过外部链接（http/https 开头）
+            if (href.startsWith('http://') || href.startsWith('https://')) {
+                return;
+            }
+            
+            // 跳过锚点链接
+            if (href.startsWith('#')) {
+                return;
+            }
+            
+            // 绑定点击事件
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleMdLinkClick(href);
+            });
+            
+            // 添加视觉提示
+            link.style.cursor = 'pointer';
+            link.title = link.title || `点击打开: ${href}`;
+        });
+    }
+    
+    /**
+     * 处理 .md 链接点击
+     * @param {string} href - 链接的 href 属性值
+     */
+    handleMdLinkClick(href) {
+        // 获取当前文件路径
+        const currentPath = this.currentFileEl.textContent;
+        
+        if (!currentPath) {
+            this.showToast('请先打开一个文件', 'warning');
+            return;
+        }
+        
+        // 解析目标文件路径
+        const targetPath = this.resolveRelativePath(currentPath, href);
+        
+        console.log(`[Link] 当前文件: ${currentPath}`);
+        console.log(`[Link] 链接 href: ${href}`);
+        console.log(`[Link] 解析后路径: ${targetPath}`);
+        
+        // 检查文件是否存在于已加载的文件列表中
+        if (this.fileHandles.has(targetPath)) {
+            this.loadFile(targetPath);
+        } else {
+            // 尝试规范化路径后再次查找
+            const normalizedPath = this.normalizePath(targetPath);
+            if (this.fileHandles.has(normalizedPath)) {
+                this.loadFile(normalizedPath);
+            } else {
+                this.showToast(`文件不存在: ${targetPath}`, 'error');
+                console.warn(`[Link] 文件未找到。已知文件:`, Array.from(this.fileHandles.keys()));
+            }
+        }
+    }
+    
+    /**
+     * 解析相对路径
+     * @param {string} currentPath - 当前文件路径 (如: "docs/guide/intro.md")
+     * @param {string} relativePath - 相对路径 (如: "./other.md" 或 "../parent.md")
+     * @returns {string} 解析后的完整路径
+     */
+    resolveRelativePath(currentPath, relativePath) {
+        // 获取当前文件的目录
+        const pathParts = currentPath.split('/');
+        pathParts.pop(); // 移除文件名，保留目录路径
+        
+        // 处理相对路径
+        let targetParts = [...pathParts];
+        const relParts = relativePath.split('/');
+        
+        for (const part of relParts) {
+            if (part === '.' || part === '') {
+                // 当前目录，跳过
+                continue;
+            } else if (part === '..') {
+                // 上级目录
+                if (targetParts.length > 0) {
+                    targetParts.pop();
+                }
+            } else {
+                // 添加路径部分
+                targetParts.push(part);
+            }
+        }
+        
+        return targetParts.join('/');
+    }
+    
+    /**
+     * 规范化路径（处理反斜杠、多余斜杠等）
+     * @param {string} path - 路径
+     * @returns {string} 规范化后的路径
+     */
+    normalizePath(path) {
+        return path
+            .replace(/\\/g, '/')  // 反斜杠转正斜杠
+            .replace(/\/+/g, '/') // 多个斜杠合并
+            .replace(/^\//, '')   // 移除开头斜杠
+            .replace(/\/$/, '');  // 移除结尾斜杠
+    }
+
     // ==================== 目录功能 ====================
     
     // 切换目录显示
