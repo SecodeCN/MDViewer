@@ -356,6 +356,24 @@ body {
     gap: 12px;
 }
 
+/* 导航按钮样式 */
+.nav-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.nav-btn:not(:disabled):hover {
+    background: var(--primary-color);
+    color: white;
+}
+
 .current-file {
     font-size: 14px;
     color: var(--text-secondary);
@@ -617,39 +635,41 @@ body {
     z-index: 11;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     background: var(--content-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 6px 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    opacity: 0;
-    transition: opacity 0.2s;
+    border: 2px solid var(--primary-color);
+    border-radius: 10px;
+    padding: 8px 6px;
+    box-shadow: 0 4px 12px rgba(74, 144, 217, 0.3);
+    opacity: 1;
+    transition: all 0.2s;
 }
 
-.split-resizer:hover .sync-buttons {
-    opacity: 1;
+.sync-buttons:hover {
+    box-shadow: 0 6px 16px rgba(74, 144, 217, 0.4);
+    transform: scale(1.05);
 }
 
 .sync-btn {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: none;
-    background: var(--bg-color);
-    color: var(--text-muted);
-    border-radius: 6px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    font-size: 12px;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .sync-btn:hover {
-    background: var(--primary-color);
-    color: white;
-    transform: scale(1.1);
+    background: var(--primary-hover);
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .sync-btn:active {

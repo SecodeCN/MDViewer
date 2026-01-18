@@ -17,6 +17,12 @@ class MDViewerStandalone {
         this.maxRecentFolders = 10; // 最多保存10个最近目录
         this.globalSearchResultsData = []; // 全局搜索结果数据
         
+        // 导航历史记录
+        this.navigationHistory = [];
+        this.historyIndex = -1;
+        this.maxHistorySize = 50;
+        this.isNavigatingHistory = false; // 防止历史导航时重复记录
+        
         this.initElements();
         this.initMarked();
         this.bindEvents();
@@ -886,6 +892,22 @@ class MDViewerStandalone {
             });
         }
         
+        // 导航历史按钮
+        const goBackBtn = document.getElementById('goBackBtn');
+        const goForwardBtn = document.getElementById('goForwardBtn');
+        
+        if (goBackBtn) {
+            goBackBtn.addEventListener('click', () => {
+                this.goBack();
+            });
+        }
+        
+        if (goForwardBtn) {
+            goForwardBtn.addEventListener('click', () => {
+                this.goForward();
+            });
+        }
+        
         // 点击文件名显示路径详情
         if (this.currentFileEl) {
             this.currentFileEl.addEventListener('click', () => {
@@ -924,6 +946,16 @@ class MDViewerStandalone {
                     e.preventDefault();
                     this.toggleGlobalSearch();
                 }
+            }
+            // Alt+← 返回上一位置
+            if (e.altKey && e.key === 'ArrowLeft') {
+                e.preventDefault();
+                this.goBack();
+            }
+            // Alt+→ 前进到下一位置
+            if (e.altKey && e.key === 'ArrowRight') {
+                e.preventDefault();
+                this.goForward();
             }
             // F5 刷新当前文档（阻止浏览器默认刷新）
             if (e.key === 'F5') {
@@ -1411,6 +1443,10 @@ class MDViewerStandalone {
             // 更新工具栏文件名的提示（显示完整路径）
             this.currentFileEl.title = `点击复制路径: ${this.getFullFilePath()}`;
             
+            // 记录导航历史
+            this.pushNavigationHistory('file', { scrollTop: 0 });
+            this.updateNavigationButtons();
+            
             this.showToast('文件已打开', 'success');
         } catch (error) {
             this.showToast('打开文件失败: ' + error.message, 'error');
@@ -1582,6 +1618,12 @@ class MDViewerStandalone {
             return;
         }
         
+        // 记录当前位置到导航历史（跳转前）
+        const previewContainer = this.preview.parentElement;
+        this.pushNavigationHistory('link', {
+            scrollTop: previewContainer ? previewContainer.scrollTop : 0
+        });
+        
         // 解析目标文件路径
         const targetPath = this.resolveRelativePath(currentPath, href);
         
@@ -1648,6 +1690,155 @@ class MDViewerStandalone {
             .replace(/\/+/g, '/') // 多个斜杠合并
             .replace(/^\//, '')   // 移除开头斜杠
             .replace(/\/$/, '');  // 移除结尾斜杠
+    }
+
+    // ==================== 导航历史功能 ====================
+    
+    /**
+     * 记录当前位置到导航历史
+     * @param {string} type - 类型: 'file', 'heading', 'scroll'
+     * @param {object} data - 位置数据
+     */
+    pushNavigationHistory(type, data) {
+        if (this.isNavigatingHistory) return;
+        
+        const currentFile = this.currentFileEl.textContent;
+        if (!currentFile || currentFile === '请打开文件夹并选择 Markdown 文件') return;
+        
+        const entry = {
+            type: type,
+            filePath: currentFile,
+            timestamp: Date.now(),
+            ...data
+        };
+        
+        // 如果不是在历史末尾，删除当前位置之后的历史
+        if (this.historyIndex < this.navigationHistory.length - 1) {
+            this.navigationHistory = this.navigationHistory.slice(0, this.historyIndex + 1);
+        }
+        
+        // 避免连续记录相同位置
+        const lastEntry = this.navigationHistory[this.navigationHistory.length - 1];
+        if (lastEntry && 
+            lastEntry.filePath === entry.filePath && 
+            lastEntry.type === entry.type &&
+            lastEntry.headingId === entry.headingId) {
+            return;
+        }
+        
+        this.navigationHistory.push(entry);
+        
+        // 限制历史记录大小
+        if (this.navigationHistory.length > this.maxHistorySize) {
+            this.navigationHistory.shift();
+        }
+        
+        this.historyIndex = this.navigationHistory.length - 1;
+        this.updateNavigationButtons();
+    }
+    
+    /**
+     * 返回上一个位置
+     */
+    async goBack() {
+        if (this.historyIndex <= 0) {
+            this.showToast('已经是最早的位置', 'info');
+            return;
+        }
+        
+        this.isNavigatingHistory = true;
+        this.historyIndex--;
+        
+        const entry = this.navigationHistory[this.historyIndex];
+        await this.navigateToEntry(entry);
+        
+        this.isNavigatingHistory = false;
+        this.updateNavigationButtons();
+    }
+    
+    /**
+     * 前进到下一个位置
+     */
+    async goForward() {
+        if (this.historyIndex >= this.navigationHistory.length - 1) {
+            this.showToast('已经是最新的位置', 'info');
+            return;
+        }
+        
+        this.isNavigatingHistory = true;
+        this.historyIndex++;
+        
+        const entry = this.navigationHistory[this.historyIndex];
+        await this.navigateToEntry(entry);
+        
+        this.isNavigatingHistory = false;
+        this.updateNavigationButtons();
+    }
+    
+    /**
+     * 导航到历史记录条目
+     */
+    async navigateToEntry(entry) {
+        const currentFile = this.currentFileEl.textContent;
+        
+        // 如果是不同文件，先加载文件
+        if (entry.filePath !== currentFile) {
+            await this.loadFile(entry.filePath);
+            // 等待渲染完成
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // 滚动到指定位置
+        if (entry.headingId) {
+            const targetElement = document.getElementById(entry.headingId);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                // 分栏模式下同步编辑器
+                if (this.viewMode === 'split' && entry.headingText && entry.headingLevel) {
+                    this.scrollEditorToHeading(entry.headingText, entry.headingLevel);
+                }
+            }
+        } else if (entry.scrollTop !== undefined) {
+            this.preview.parentElement.scrollTo({
+                top: entry.scrollTop,
+                behavior: 'smooth'
+            });
+        }
+        
+        this.showToast(`返回: ${entry.filePath.split('/').pop()}`, 'info');
+    }
+    
+    /**
+     * 更新导航按钮状态
+     */
+    updateNavigationButtons() {
+        const goBackBtn = document.getElementById('goBackBtn');
+        const goForwardBtn = document.getElementById('goForwardBtn');
+        
+        if (goBackBtn) {
+            if (this.historyIndex > 0) {
+                goBackBtn.style.display = '';
+                goBackBtn.disabled = false;
+                goBackBtn.style.opacity = '1';
+            } else {
+                goBackBtn.style.display = '';
+                goBackBtn.disabled = true;
+                goBackBtn.style.opacity = '0.4';
+            }
+        }
+        
+        if (goForwardBtn) {
+            if (this.historyIndex < this.navigationHistory.length - 1) {
+                goForwardBtn.style.display = '';
+                goForwardBtn.disabled = false;
+                goForwardBtn.style.opacity = '1';
+            } else {
+                goForwardBtn.style.display = '';
+                goForwardBtn.disabled = true;
+                goForwardBtn.style.opacity = '0.4';
+            }
+        }
     }
 
     // ==================== 分栏同步功能 ====================
@@ -1960,6 +2151,13 @@ class MDViewerStandalone {
                 const targetElement = document.getElementById(node.id);
                 
                 if (targetElement) {
+                    // 记录导航历史
+                    this.pushNavigationHistory('heading', {
+                        headingId: node.id,
+                        headingText: node.text,
+                        headingLevel: node.level
+                    });
+                    
                     targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     
                     // 高亮当前目录项
