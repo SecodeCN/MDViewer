@@ -716,7 +716,39 @@ class MDViewerStandalone {
             // 匹配 ID[...] 或 ID["..."] 格式的节点定义
             let result = code;
             
-            // 1. 处理 subgraph 标签 - subgraph ID[Label] 或 subgraph ID["Label"]
+            // Mermaid 保留关键字，不进行节点标签处理
+            const MERMAID_KEYWORDS = ['fill', 'stroke', 'color', 'class', 'click'];
+            
+            // 0. 移除可能导致语法错误的零宽字符和特殊空格
+            result = result.replace(/[\u200B-\u200D\uFEFF]/g, ''); // 零宽字符
+            result = result.replace(/\u00A0/g, ' '); // 不间断空格转为普通空格
+            
+            // 1. 处理 HTML 标签字符 - 转换 < 和 > 为 Mermaid 安全格式
+            // 注意: Mermaid 泛型应使用 ~ 语法 (如 List~T~)，而不是 <T>
+            // 只在节点标签内转换，避免影响其他 Mermaid 语法
+            result = result.replace(/(\w+)\[([^\]]{0,500}?)<([^>]{1,50})>([^\]]{0,500}?)\]/g, (match, id, before, content, after) => {
+                // 跳过 <br> 标签
+                if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
+                    return match;
+                }
+                // 替换 HTML 标签
+                return `${id}[${before}&lt;${content}&gt;${after}]`;
+            });
+            
+            // 同样处理圆括号节点中的 HTML 标签
+            result = result.replace(/(\w+)\(([^)]{0,500}?)<([^>]{1,50})>([^)]{0,500}?)\)/g, (match, id, before, content, after) => {
+                if (MERMAID_KEYWORDS.includes(id)) {
+                    return match;
+                }
+                // 跳过 <br> 标签
+                if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
+                    return match;
+                }
+                // 替换 HTML 标签
+                return `${id}(${before}&lt;${content}&gt;${after})`;
+            });
+            
+            // 2. 处理 subgraph 标签 - subgraph ID[Label] 或 subgraph ID["Label"]
             result = result.replace(/subgraph\s+(\w+)\[([^\]]+)\]/g, (match, id, label) => {
                 // 如果标签已经用引号包裹，保持不变
                 if (label.startsWith('"') && label.endsWith('"')) {
@@ -727,7 +759,7 @@ class MDViewerStandalone {
                 return `subgraph ${id}["${fixedLabel}"]`;
             });
             
-            // 2. 处理普通节点 ID[Label] - 多行标签
+            // 3. 处理普通节点 ID[Label] - 多行标签
             // 使用更宽松的匹配，处理跨行的情况
             result = result.replace(/(\w+)\[((?:[^\[\]]|\n)+)\]/g, (match, id, label) => {
                 // 跳过已经是 subgraph 的
@@ -759,10 +791,10 @@ class MDViewerStandalone {
                 return match;
             });
             
-            // 3. 处理圆角节点 ID(Label)
+            // 4. 处理圆角节点 ID(Label)
             result = result.replace(/(\w+)\(((?:[^()]|\n)+)\)/g, (match, id, label) => {
-                // 跳过 classDef 和其他关键字
-                if (['fill', 'stroke', 'color', 'class', 'click'].includes(id)) {
+                // 跳过 Mermaid 关键字
+                if (MERMAID_KEYWORDS.includes(id)) {
                     return match;
                 }
                 
