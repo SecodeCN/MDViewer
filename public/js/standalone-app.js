@@ -3303,10 +3303,9 @@ class MDViewerStandalone {
             // 获取 SVG 字符串
             const svgString = new XMLSerializer().serializeToString(svgClone);
             
-            // 创建 Image 对象
+            // 使用 data URL 代替 blob URL 以避免 CORS 污染
             const img = new Image();
-            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
+            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
             
             img.onload = () => {
                 // 创建 Canvas
@@ -3337,7 +3336,6 @@ class MDViewerStandalone {
                     document.body.removeChild(link);
                     
                     // 释放 URL
-                    URL.revokeObjectURL(url);
                     URL.revokeObjectURL(pngUrl);
                     
                     this.showToast('PNG 下载成功', 'success');
@@ -3348,10 +3346,9 @@ class MDViewerStandalone {
             img.onerror = (error) => {
                 console.error('[Download] 图片加载失败:', error);
                 this.showToast('PNG 下载失败', 'error');
-                URL.revokeObjectURL(url);
             };
             
-            img.src = url;
+            img.src = svgDataUrl;
         } catch (error) {
             console.error('[Download] PNG 下载失败:', error);
             this.showToast('PNG 下载失败', 'error');
