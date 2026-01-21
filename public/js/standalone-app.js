@@ -721,13 +721,32 @@ class MDViewerStandalone {
             result = result.replace(/\u00A0/g, ' '); // 不间断空格转为普通空格
             
             // 1. 处理 HTML 标签字符 - 转换 < 和 > 为 Mermaid 安全格式
-            // 在标签和描述中，将 <...> 转换为 &lt;...&gt;
-            result = result.replace(/<([^>]+)>/g, (match, content) => {
-                // 跳过 <br> 标签
-                if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
+            // 注意: Mermaid 泛型应使用 ~ 语法 (如 List~T~)，而不是 <T>
+            // 只在节点标签内转换，避免影响其他 Mermaid 语法
+            result = result.replace(/(\w+)\[([^\]]*<[^>]+>[^\]]*)\]/g, (match, id, label) => {
+                // 替换标签内的 HTML 标签字符
+                const fixedLabel = label.replace(/<([^>]+)>/g, (m, content) => {
+                    // 跳过 <br> 标签
+                    if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
+                        return m;
+                    }
+                    return `&lt;${content}&gt;`;
+                });
+                return `${id}[${fixedLabel}]`;
+            });
+            
+            // 同样处理圆括号节点中的 HTML 标签
+            result = result.replace(/(\w+)\(([^)]*<[^>]+>[^)]*)\)/g, (match, id, label) => {
+                if (['fill', 'stroke', 'color', 'class', 'click'].includes(id)) {
                     return match;
                 }
-                return `&lt;${content}&gt;`;
+                const fixedLabel = label.replace(/<([^>]+)>/g, (m, content) => {
+                    if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
+                        return m;
+                    }
+                    return `&lt;${content}&gt;`;
+                });
+                return `${id}(${fixedLabel})`;
             });
             
             // 2. 处理 subgraph 标签 - subgraph ID[Label] 或 subgraph ID["Label"]
