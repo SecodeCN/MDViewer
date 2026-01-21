@@ -684,16 +684,16 @@ class MDViewerStandalone {
                 theme: isDark ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
-                    useMaxWidth: true
+                    useMaxWidth: false   // 使用自然大小
                 }
             });
         }
@@ -2838,16 +2838,16 @@ class MDViewerStandalone {
                 theme: newTheme === 'dark' ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
-                    useMaxWidth: true
+                    useMaxWidth: false   // 使用自然大小
                 }
             });
             // 如果当前有打开的文件，重新渲染
@@ -3241,6 +3241,32 @@ class MDViewerStandalone {
         }
     }
     
+    // 内联 SVG 样式（用于 PNG 导出）
+    inlineSVGStyles(svg) {
+        // 遍历所有元素，将计算样式内联
+        const elements = svg.querySelectorAll('*');
+        elements.forEach(element => {
+            const computedStyle = window.getComputedStyle(element);
+            const styleString = Array.from(computedStyle).reduce((str, property) => {
+                // 只内联重要的样式属性
+                if (property.startsWith('fill') || 
+                    property.startsWith('stroke') || 
+                    property.startsWith('font') ||
+                    property.startsWith('text') ||
+                    property === 'opacity' ||
+                    property === 'transform' ||
+                    property === 'display' ||
+                    property === 'visibility') {
+                    return `${str}${property}:${computedStyle.getPropertyValue(property)};`;
+                }
+                return str;
+            }, '');
+            if (styleString) {
+                element.setAttribute('style', styleString);
+            }
+        });
+    }
+    
     // 下载图表为 PNG
     downloadDiagramAsPNG() {
         if (!this.currentDiagram) {
@@ -3257,6 +3283,9 @@ class MDViewerStandalone {
         try {
             // 克隆 SVG
             const svgClone = svg.cloneNode(true);
+            
+            // 内联所有样式
+            this.inlineSVGStyles(svgClone);
             
             // 设置 SVG 命名空间
             svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');

@@ -431,6 +431,9 @@
     border: 1px solid var(--border-color);
     overflow: auto;
     max-width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* 深色模式下的 Mermaid 优化 */
@@ -444,7 +447,7 @@
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 0 auto;
+    /* 保持原始大小，但不超过容器宽度 */
 }
 
 /* 大型图表支持横向滚动 */
