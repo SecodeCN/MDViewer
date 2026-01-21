@@ -3083,7 +3083,7 @@ class MDViewerStandalone {
     
     // 调整缩放
     adjustZoom(delta) {
-        this.currentZoomScale = Math.max(0.5, Math.min(5, this.currentZoomScale + delta));
+        this.currentZoomScale = Math.max(0.5, Math.min(20, this.currentZoomScale + delta));
         this.updateZoomTransform();
     }
     
