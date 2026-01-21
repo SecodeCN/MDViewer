@@ -684,16 +684,16 @@ class MDViewerStandalone {
                 theme: isDark ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
-                    useMaxWidth: true
+                    useMaxWidth: false   // 使用自然大小
                 }
             });
         }
@@ -2838,16 +2838,16 @@ class MDViewerStandalone {
                 theme: newTheme === 'dark' ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
-                    useMaxWidth: true,
+                    useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
-                    useMaxWidth: true
+                    useMaxWidth: false   // 使用自然大小
                 }
             });
             // 如果当前有打开的文件，重新渲染
@@ -3241,6 +3241,34 @@ class MDViewerStandalone {
         }
     }
     
+    // 内联 SVG 样式（用于 PNG 导出）
+    inlineSVGStyles(svg) {
+        // 定义需要内联的重要样式属性
+        const importantProperties = [
+            'fill', 'fill-opacity', 'fill-rule',
+            'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin',
+            'font-family', 'font-size', 'font-weight', 'font-style',
+            'text-anchor', 'text-decoration',
+            'opacity', 'transform', 'display', 'visibility'
+        ];
+        
+        // 遍历所有元素，将计算样式内联
+        const elements = svg.querySelectorAll('*');
+        elements.forEach(element => {
+            const computedStyle = window.getComputedStyle(element);
+            const styleString = importantProperties.reduce((str, property) => {
+                const value = computedStyle.getPropertyValue(property);
+                if (value && value !== 'none' && value !== 'normal') {
+                    return `${str}${property}:${value};`;
+                }
+                return str;
+            }, '');
+            if (styleString) {
+                element.setAttribute('style', styleString);
+            }
+        });
+    }
+    
     // 下载图表为 PNG
     downloadDiagramAsPNG() {
         if (!this.currentDiagram) {
@@ -3258,6 +3286,9 @@ class MDViewerStandalone {
             // 克隆 SVG
             const svgClone = svg.cloneNode(true);
             
+            // 内联所有样式
+            this.inlineSVGStyles(svgClone);
+            
             // 设置 SVG 命名空间
             svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
             svgClone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
@@ -3274,10 +3305,10 @@ class MDViewerStandalone {
             // 获取 SVG 字符串
             const svgString = new XMLSerializer().serializeToString(svgClone);
             
-            // 创建 Image 对象
+            // 使用 data URL 代替 blob URL 以避免 CORS 污染
             const img = new Image();
-            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
+            // 使用标准的 base64 编码，避免使用已弃用的 unescape()
+            const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
             
             img.onload = () => {
                 // 创建 Canvas
@@ -3308,7 +3339,6 @@ class MDViewerStandalone {
                     document.body.removeChild(link);
                     
                     // 释放 URL
-                    URL.revokeObjectURL(url);
                     URL.revokeObjectURL(pngUrl);
                     
                     this.showToast('PNG 下载成功', 'success');
@@ -3319,10 +3349,9 @@ class MDViewerStandalone {
             img.onerror = (error) => {
                 console.error('[Download] 图片加载失败:', error);
                 this.showToast('PNG 下载失败', 'error');
-                URL.revokeObjectURL(url);
             };
             
-            img.src = url;
+            img.src = svgDataUrl;
         } catch (error) {
             console.error('[Download] PNG 下载失败:', error);
             this.showToast('PNG 下载失败', 'error');
