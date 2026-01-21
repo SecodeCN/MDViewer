@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid 10.6.1 Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-case {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .mermaid {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #666;
+        }
+        .info {
+            padding: 10px;
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mermaid 10.6.1 测试页面</h1>
+    
+    <div class="info">
+        <strong>测试目的：</strong> 验证 Mermaid 10.6.1 是否正确加载并能够渲染图表
+    </div>
+
+    <div class="test-case">
+        <h2>测试 1: 简单流程图</h2>
+        <div class="mermaid">
+graph TD
+    A[开始] --> B{判断}
+    B -->|是| C[执行]
+    B -->|否| D[跳过]
+    C --> E[结束]
+    D --> E
+        </div>
+    </div>
+
+    <div class="test-case">
+        <h2>测试 2: 类图（泛型支持）</h2>
+        <div class="mermaid">
+classDiagram
+    class List~T~ {
+        +add(item: T) void
+        +get(index: int) T
+    }
+    
+    class Map~K,V~ {
+        +put(key: K, value: V) void
+        +get(key: K) V
+    }
+        </div>
+    </div>
+
+    <div class="test-case">
+        <h2>测试 3: 时序图</h2>
+        <div class="mermaid">
+sequenceDiagram
+    participant A as 用户
+    participant B as 系统
+    A->>B: 请求数据
+    B-->>A: 返回结果
+        </div>
+    </div>
+
+    <div id="version-info" class="info" style="margin-top: 20px;">
+        <strong>Mermaid 版本：</strong> <span id="version">检测中...</span>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script>
+        // 初始化 Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+
+        // 显示版本信息
+        window.addEventListener('DOMContentLoaded', () => {
+            const versionEl = document.getElementById('version');
+            if (typeof mermaid !== 'undefined') {
+                versionEl.textContent = mermaid.version || '已加载（版本未知）';
+                versionEl.style.color = 'green';
+            } else {
+                versionEl.textContent = '❌ Mermaid 未加载';
+                versionEl.style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>
