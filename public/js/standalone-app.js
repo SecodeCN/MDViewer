@@ -2903,6 +2903,8 @@ class MDViewerStandalone {
         this.zoomOut = document.getElementById('zoomOut');
         this.zoomReset = document.getElementById('zoomReset');
         this.zoomLevel = document.getElementById('zoomLevel');
+        this.downloadSVG = document.getElementById('downloadSVG');
+        this.downloadPNG = document.getElementById('downloadPNG');
         
         // 检查元素是否存在
         if (!this.zoomModal) console.error('[Zoom] 错误: diagramZoomModal 元素未找到!');
@@ -2912,6 +2914,8 @@ class MDViewerStandalone {
         if (!this.zoomOut) console.error('[Zoom] 错误: zoomOut 元素未找到!');
         if (!this.zoomReset) console.error('[Zoom] 错误: zoomReset 元素未找到!');
         if (!this.zoomLevel) console.error('[Zoom] 错误: zoomLevel 元素未找到!');
+        if (!this.downloadSVG) console.error('[Zoom] 错误: downloadSVG 元素未找到!');
+        if (!this.downloadPNG) console.error('[Zoom] 错误: downloadPNG 元素未找到!');
         
         this.currentZoomScale = 1;
         this.currentDiagram = null;
@@ -2947,6 +2951,14 @@ class MDViewerStandalone {
         }
         if (this.zoomReset) {
             this.zoomReset.addEventListener('click', () => this.resetZoom());
+        }
+        
+        // 下载按钮
+        if (this.downloadSVG) {
+            this.downloadSVG.addEventListener('click', () => this.downloadDiagramAsSVG());
+        }
+        if (this.downloadPNG) {
+            this.downloadPNG.addEventListener('click', () => this.downloadDiagramAsPNG());
         }
         
         // 键盘快捷键
@@ -3178,6 +3190,143 @@ class MDViewerStandalone {
         });
         
         console.log(`[Zoom] ✅ 成功绑定 ${diagrams.length} 个图表的事件`);
+    }
+    
+    // 下载图表为 SVG
+    downloadDiagramAsSVG() {
+        if (!this.currentDiagram) {
+            console.warn('[Download] 没有当前图表可下载');
+            return;
+        }
+        
+        const svg = this.currentDiagram.querySelector('svg');
+        if (!svg) {
+            this.showToast('未找到 SVG 元素', 'error');
+            return;
+        }
+        
+        try {
+            // 克隆 SVG 以避免修改原始元素
+            const svgClone = svg.cloneNode(true);
+            
+            // 设置 SVG 命名空间
+            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svgClone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+            
+            // 获取 SVG 字符串
+            const svgString = new XMLSerializer().serializeToString(svgClone);
+            
+            // 创建 Blob
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            
+            // 创建下载链接
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `mermaid-diagram-${Date.now()}.svg`;
+            
+            // 触发下载
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // 释放 URL
+            URL.revokeObjectURL(url);
+            
+            this.showToast('SVG 下载成功', 'success');
+            console.log('[Download] SVG 下载完成');
+        } catch (error) {
+            console.error('[Download] SVG 下载失败:', error);
+            this.showToast('SVG 下载失败', 'error');
+        }
+    }
+    
+    // 下载图表为 PNG
+    downloadDiagramAsPNG() {
+        if (!this.currentDiagram) {
+            console.warn('[Download] 没有当前图表可下载');
+            return;
+        }
+        
+        const svg = this.currentDiagram.querySelector('svg');
+        if (!svg) {
+            this.showToast('未找到 SVG 元素', 'error');
+            return;
+        }
+        
+        try {
+            // 克隆 SVG
+            const svgClone = svg.cloneNode(true);
+            
+            // 设置 SVG 命名空间
+            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svgClone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+            
+            // 获取 SVG 尺寸
+            const bbox = svg.getBBox();
+            const width = bbox.width || svg.clientWidth || 800;
+            const height = bbox.height || svg.clientHeight || 600;
+            
+            // 设置明确的尺寸
+            svgClone.setAttribute('width', width);
+            svgClone.setAttribute('height', height);
+            
+            // 获取 SVG 字符串
+            const svgString = new XMLSerializer().serializeToString(svgClone);
+            
+            // 创建 Image 对象
+            const img = new Image();
+            const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = () => {
+                // 创建 Canvas
+                const canvas = document.createElement('canvas');
+                const scale = 2; // 使用 2x 分辨率提高质量
+                canvas.width = width * scale;
+                canvas.height = height * scale;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // 设置白色背景（针对深色主题的图表）
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制 SVG
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0);
+                
+                // 转换为 PNG 并下载
+                canvas.toBlob((blob) => {
+                    const pngUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = pngUrl;
+                    link.download = `mermaid-diagram-${Date.now()}.png`;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    // 释放 URL
+                    URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(pngUrl);
+                    
+                    this.showToast('PNG 下载成功', 'success');
+                    console.log('[Download] PNG 下载完成');
+                }, 'image/png');
+            };
+            
+            img.onerror = (error) => {
+                console.error('[Download] 图片加载失败:', error);
+                this.showToast('PNG 下载失败', 'error');
+                URL.revokeObjectURL(url);
+            };
+            
+            img.src = url;
+        } catch (error) {
+            console.error('[Download] PNG 下载失败:', error);
+            this.showToast('PNG 下载失败', 'error');
+        }
     }
 }
 
