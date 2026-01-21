@@ -53,4 +53,4 @@ flowchart TD
 
 ## 预期结果
 
-所有图表应该正常显示，不应出现 "Syntax error in text mermaid version 10.6.1" 错误。
+所有图表应该正常显示，不应出现 "Syntax error in text mermaid version 11.12.2" 错误。
