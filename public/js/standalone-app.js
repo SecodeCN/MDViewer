@@ -3243,21 +3243,23 @@ class MDViewerStandalone {
     
     // 内联 SVG 样式（用于 PNG 导出）
     inlineSVGStyles(svg) {
+        // 定义需要内联的重要样式属性
+        const importantProperties = [
+            'fill', 'fill-opacity', 'fill-rule',
+            'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin',
+            'font-family', 'font-size', 'font-weight', 'font-style',
+            'text-anchor', 'text-decoration',
+            'opacity', 'transform', 'display', 'visibility'
+        ];
+        
         // 遍历所有元素，将计算样式内联
         const elements = svg.querySelectorAll('*');
         elements.forEach(element => {
             const computedStyle = window.getComputedStyle(element);
-            const styleString = Array.from(computedStyle).reduce((str, property) => {
-                // 只内联重要的样式属性
-                if (property.startsWith('fill') || 
-                    property.startsWith('stroke') || 
-                    property.startsWith('font') ||
-                    property.startsWith('text') ||
-                    property === 'opacity' ||
-                    property === 'transform' ||
-                    property === 'display' ||
-                    property === 'visibility') {
-                    return `${str}${property}:${computedStyle.getPropertyValue(property)};`;
+            const styleString = importantProperties.reduce((str, property) => {
+                const value = computedStyle.getPropertyValue(property);
+                if (value && value !== 'none' && value !== 'normal') {
+                    return `${str}${property}:${value};`;
                 }
                 return str;
             }, '');
@@ -3305,7 +3307,8 @@ class MDViewerStandalone {
             
             // 使用 data URL 代替 blob URL 以避免 CORS 污染
             const img = new Image();
-            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+            // 使用标准的 base64 编码，避免使用已弃用的 unescape()
+            const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
             
             img.onload = () => {
                 // 创建 Canvas

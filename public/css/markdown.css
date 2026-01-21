@@ -447,7 +447,7 @@
     max-width: 100%;
     height: auto;
     display: block;
-    /* 保持原始大小，但不超过容器宽度 */
+    /* SVG 使用自然大小，max-width 确保不超过容器宽度 */
 }
 
 /* 大型图表支持横向滚动 */
