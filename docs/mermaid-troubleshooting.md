@@ -43,7 +43,7 @@ mermaid.version
 
 **预期结果**：
 ```
-"10.6.1"  // 或类似版本号
+"11.12.2"  // 或类似版本号
 ```
 
 ---
@@ -180,17 +180,17 @@ Height: 具体数值 (不是 0px)
 
 编辑 `standalone.html`，将：
 ```html
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"></script>
 ```
 
 改为：
 ```html
-<script src="https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<script src="https://unpkg.com/mermaid@11.12.2/dist/mermaid.min.js"></script>
 ```
 
 或者：
 ```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.12.2/mermaid.min.js"></script>
 ```
 
 ---
