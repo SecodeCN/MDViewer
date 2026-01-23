@@ -102,19 +102,21 @@ class MDViewer {
                 );
             }
             
-            // 处理节点标签中的特殊字符
-            result = result.replace(/(\w+)\[((?:[^\[\]]|\n)+)\]/g, (match, id, label) => {
-                if (label.startsWith('"') && label.endsWith('"')) {
+            // 处理节点标签中的特殊字符 - 仅用于流程图
+            if (!isSequenceDiagram) {
+                result = result.replace(/(\w+)\[((?:[^\[\]]|\n)+)\]/g, (match, id, label) => {
+                    if (label.startsWith('"') && label.endsWith('"')) {
+                        return match;
+                    }
+                    const hasSpecialChars = /[()/:&]/.test(label);
+                    if (hasSpecialChars) {
+                        let fixedLabel = label.trim().replace(/\n\s*/g, '<br>');
+                        fixedLabel = fixedLabel.replace(/"/g, '#quot;');
+                        return `${id}["${fixedLabel}"]`;
+                    }
                     return match;
-                }
-                const hasSpecialChars = /[()/:&]/.test(label);
-                if (hasSpecialChars) {
-                    let fixedLabel = label.trim().replace(/\n\s*/g, '<br>');
-                    fixedLabel = fixedLabel.replace(/"/g, '#quot;');
-                    return `${id}["${fixedLabel}"]`;
-                }
-                return match;
-            });
+                });
+            }
             
             return result;
         };
