@@ -1365,31 +1365,119 @@ class MDViewerStandalone {
             return 'utf-16be';
         }
         
-        // 尝试检测 GBK (简单启发式检测)
-        const testArr = new Uint8Array(buffer.slice(0, Math.min(1000, buffer.byteLength)));
-        let hasHighByte = false;
+        // 分析更多内容进行编码检测
+        const sampleSize = Math.min(4096, buffer.byteLength);
+        const testArr = new Uint8Array(buffer.slice(0, sampleSize));
         
-        for (let i = 0; i < testArr.length; i++) {
-            if (testArr[i] > 127) {
-                hasHighByte = true;
-                break;
-            }
+        // 使用更严格的 UTF-8 验证
+        if (this.isValidUtf8(testArr)) {
+            return 'utf-8';
         }
         
-        // 如果有高位字节，尝试作为 UTF-8 解码
-        if (hasHighByte) {
-            try {
-                const decoder = new TextDecoder('utf-8', { fatal: true });
-                decoder.decode(testArr);
-                return 'utf-8';
-            } catch (e) {
-                // UTF-8 解码失败，可能是 GBK
-                return 'gbk';
-            }
+        // 检测是否可能是 GBK/GB2312
+        if (this.looksLikeGbk(testArr)) {
+            return 'gbk';
         }
         
         // 默认 UTF-8
         return 'utf-8';
+    }
+    
+    /**
+     * 严格验证是否为有效的 UTF-8 编码
+     * UTF-8 编码规则：
+     * - 0xxxxxxx: ASCII (0-127)
+     * - 110xxxxx 10xxxxxx: 2字节 (128-2047)
+     * - 1110xxxx 10xxxxxx 10xxxxxx: 3字节 (2048-65535)
+     * - 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx: 4字节 (65536+)
+     */
+    isValidUtf8(arr) {
+        let i = 0;
+        let hasMultiByte = false;
+        
+        while (i < arr.length) {
+            const byte = arr[i];
+            
+            if (byte <= 0x7F) {
+                // ASCII
+                i++;
+            } else if ((byte & 0xE0) === 0xC0) {
+                // 2字节序列: 110xxxxx
+                if (i + 1 >= arr.length) return false;
+                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
+                // 检查过长编码 (overlong encoding)
+                if ((byte & 0x1E) === 0) return false;
+                hasMultiByte = true;
+                i += 2;
+            } else if ((byte & 0xF0) === 0xE0) {
+                // 3字节序列: 1110xxxx
+                if (i + 2 >= arr.length) return false;
+                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
+                if ((arr[i + 2] & 0xC0) !== 0x80) return false;
+                // 检查过长编码
+                if (byte === 0xE0 && (arr[i + 1] & 0x20) === 0) return false;
+                hasMultiByte = true;
+                i += 3;
+            } else if ((byte & 0xF8) === 0xF0) {
+                // 4字节序列: 11110xxx
+                if (i + 3 >= arr.length) return false;
+                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
+                if ((arr[i + 2] & 0xC0) !== 0x80) return false;
+                if ((arr[i + 3] & 0xC0) !== 0x80) return false;
+                // 检查过长编码
+                if (byte === 0xF0 && (arr[i + 1] & 0x30) === 0) return false;
+                hasMultiByte = true;
+                i += 4;
+            } else {
+                // 非法的 UTF-8 起始字节
+                return false;
+            }
+        }
+        
+        // 如果只有 ASCII，也是有效的 UTF-8
+        return true;
+    }
+    
+    /**
+     * 启发式检测是否像 GBK 编码
+     * GBK 双字节字符范围：
+     * - 第一字节: 0x81-0xFE
+     * - 第二字节: 0x40-0xFE (排除 0x7F)
+     */
+    looksLikeGbk(arr) {
+        let gbkPairs = 0;
+        let invalidPairs = 0;
+        let i = 0;
+        
+        while (i < arr.length) {
+            const byte = arr[i];
+            
+            if (byte <= 0x7F) {
+                // ASCII
+                i++;
+            } else if (byte >= 0x81 && byte <= 0xFE) {
+                // 可能是 GBK 双字节的第一个字节
+                if (i + 1 < arr.length) {
+                    const nextByte = arr[i + 1];
+                    if ((nextByte >= 0x40 && nextByte <= 0x7E) || 
+                        (nextByte >= 0x80 && nextByte <= 0xFE)) {
+                        gbkPairs++;
+                        i += 2;
+                    } else {
+                        invalidPairs++;
+                        i++;
+                    }
+                } else {
+                    i++;
+                }
+            } else {
+                invalidPairs++;
+                i++;
+            }
+        }
+        
+        // 如果有 GBK 字符对且没有太多无效对，则认为是 GBK
+        return gbkPairs > 0 && invalidPairs <= gbkPairs * 0.1;
     }
     
     // 解码文件内容
