@@ -34,6 +34,9 @@
                 <button class="btn btn-secondary" id="collapseAllBtn" title="折叠所有文件夹">
                     <i class="fas fa-folder-minus"></i>
                 </button>
+                <button class="btn btn-secondary" id="showDemoBtn2" title="查看功能演示 (Mermaid/PlantUML)">
+                    <i class="fas fa-magic"></i>
+                </button>
             </div>
             
             <!-- 最近文件夹列表 -->
@@ -117,6 +120,22 @@
                     <button class="btn-icon" id="tocToggle" title="显示/隐藏目录">
                         <i class="fas fa-list-ul"></i>
                     </button>
+                    <div class="export-dropdown">
+                        <button class="btn-icon" id="exportBtn" title="导出文档">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <div class="export-menu" id="exportMenu">
+                            <button class="export-option" id="exportPdfBtn">
+                                <i class="fas fa-file-pdf"></i> 导出 PDF
+                            </button>
+                            <button class="export-option" id="exportWordBtn">
+                                <i class="fas fa-file-word"></i> 导出 Word
+                            </button>
+                            <button class="export-option" id="exportHtmlBtn">
+                                <i class="fas fa-file-code"></i> 导出 HTML
+                            </button>
+                        </div>
+                    </div>
                     <button class="btn-icon" id="themeToggle" title="切换主题">
                         <i class="fas fa-moon"></i>
                     </button>
@@ -131,7 +150,12 @@
                         <i class="fas fa-book-reader"></i>
                         <h2>欢迎使用 MD Viewer</h2>
                         <p>点击左侧"打开文件夹"按钮，选择包含 Markdown 文件的文件夹</p>
-                        <p class="tip">支持 GFM 语法、代码高亮、实时编辑等功能</p>
+                        <p class="tip">支持 GFM 语法、代码高亮、Mermaid、PlantUML、数学公式等功能</p>
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" id="showDemoBtn" style="padding: 12px 24px; font-size: 16px;">
+                                <i class="fas fa-magic"></i> 查看功能演示
+                            </button>
+                        </div>
                         <div style="margin-top: 30px; font-size: 14px; color: var(--text-muted);">
                             <p><i class="fas fa-info-circle"></i> 需要使用 Chrome、Edge 或其他支持 File System Access API 的浏览器</p>
                         </div>
@@ -247,6 +271,12 @@
     <script src="public/lib/katex/auto-render.min.js"></script>
     <!-- Mermaid 流程图支持 -->
     <script src="public/lib/mermaid/mermaid.min.js"></script>
+    <!-- PlantUML 支持 - 使用 plantuml-encoder 将代码转换为可访问的URL -->
+    <script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+    <!-- 导出功能支持 -->
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <script src="public/js/standalone-app.js"></script>
 </body>
 </html>

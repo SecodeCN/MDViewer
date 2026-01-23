@@ -698,6 +698,9 @@ class MDViewerStandalone {
             });
         }
         
+        // PlantUML 服务器配置
+        this.plantumlServer = 'https://www.plantuml.com/plantuml';
+        
         // 配置 marked
         marked.setOptions({
             gfm: true,
@@ -781,12 +784,41 @@ class MDViewerStandalone {
             return result;
         };
         
-        // 自定义代码块渲染器，处理 Mermaid
+        // PlantUML 编码函数
+        this.encodePlantUML = (code) => {
+            // 确保代码包含 @startuml 和 @enduml
+            let fullCode = code.trim();
+            if (!fullCode.startsWith('@start')) {
+                fullCode = '@startuml\n' + fullCode + '\n@enduml';
+            }
+            
+            // 使用 plantuml-encoder 库进行编码
+            if (typeof plantumlEncoder !== 'undefined') {
+                return plantumlEncoder.encode(fullCode);
+            }
+            
+            // 后备方案：如果编码库未加载，返回原始代码
+            console.warn('[PlantUML] plantuml-encoder 库未加载');
+            return null;
+        };
+        
+        // 自定义代码块渲染器，处理 Mermaid 和 PlantUML
         renderer.code = (code, language) => {
             // 如果是 mermaid 代码块，预处理后返回 mermaid div
             if (language === 'mermaid') {
                 const processedCode = this.preprocessMermaid(code);
                 return `<div class="mermaid">${processedCode}</div>`;
+            }
+            
+            // 如果是 PlantUML 代码块，返回带有占位符的容器
+            if (language === 'plantuml' || language === 'puml') {
+                const uniqueId = `plantuml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                // 存储原始代码用于后续渲染
+                return `<div class="plantuml" id="${uniqueId}" data-plantuml-code="${encodeURIComponent(code)}">
+                    <div class="plantuml-loading">
+                        <i class="fas fa-spinner fa-spin"></i> 正在生成 PlantUML 图表...
+                    </div>
+                </div>`;
             }
             
             // 其他代码块正常处理
@@ -858,6 +890,22 @@ class MDViewerStandalone {
         document.getElementById('openFolderBtn').addEventListener('click', () => {
             this.openFolder();
         });
+        
+        // 查看功能演示按钮（欢迎页面）
+        const showDemoBtn = document.getElementById('showDemoBtn');
+        if (showDemoBtn) {
+            showDemoBtn.addEventListener('click', () => {
+                this.showFeaturesDemo();
+            });
+        }
+        
+        // 查看功能演示按钮（侧边栏）
+        const showDemoBtn2 = document.getElementById('showDemoBtn2');
+        if (showDemoBtn2) {
+            showDemoBtn2.addEventListener('click', () => {
+                this.showFeaturesDemo();
+            });
+        }
         
         // 刷新文件列表
         document.getElementById('refreshBtn').addEventListener('click', () => {
@@ -1004,6 +1052,9 @@ class MDViewerStandalone {
         if (globalSearchClose) {
             globalSearchClose.addEventListener('click', () => this.closeGlobalSearch());
         }
+        
+        // 导出功能
+        this.initExportFeature();
         
         // 目录切换
         if (this.tocToggle) {
@@ -1553,6 +1604,9 @@ class MDViewerStandalone {
             console.warn('[Preview] Mermaid 未定义！');
         }
         
+        // 渲染 PlantUML 图表
+        this.renderPlantUML();
+        
         // 渲染数学公式
         if (typeof renderMathInElement !== 'undefined') {
             renderMathInElement(this.preview, {
@@ -2042,6 +2096,833 @@ class MDViewerStandalone {
         this.contentArea.classList.remove('toc-visible');
         this.tocToggle.classList.remove('active');
         localStorage.setItem('md-viewer-toc-visible', 'false');
+    }
+    
+    // 渲染 PlantUML 图表
+    renderPlantUML() {
+        const plantumlElements = this.preview.querySelectorAll('.plantuml');
+        console.log(`[Preview] 找到 ${plantumlElements.length} 个 PlantUML 元素待渲染`);
+        
+        if (plantumlElements.length === 0) return;
+        
+        plantumlElements.forEach((element) => {
+            const code = decodeURIComponent(element.getAttribute('data-plantuml-code'));
+            if (!code) return;
+            
+            // 编码 PlantUML 代码
+            const encoded = this.encodePlantUML(code);
+            if (!encoded) {
+                element.innerHTML = `
+                    <div class="plantuml-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>PlantUML 编码器未加载</span>
+                    </div>`;
+                return;
+            }
+            
+            // 使用深色/浅色主题
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            const format = 'svg'; // 使用 SVG 格式以获得更好的渲染效果
+            
+            // 构建 PlantUML 服务器 URL
+            const imgUrl = `${this.plantumlServer}/${format}/${encoded}`;
+            
+            console.log(`[PlantUML] 渲染图表: ${element.id}`);
+            
+            // 创建图片元素
+            const img = new Image();
+            img.onload = () => {
+                element.innerHTML = '';
+                element.appendChild(img);
+                // 绑定缩放事件
+                this.attachDiagramZoomHandlers();
+            };
+            img.onerror = () => {
+                element.innerHTML = `
+                    <div class="plantuml-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>PlantUML 图表渲染失败</span>
+                        <details>
+                            <summary>查看原始代码</summary>
+                            <pre><code>${this.escapeHtml(code)}</code></pre>
+                        </details>
+                    </div>`;
+            };
+            img.src = imgUrl;
+            img.alt = 'PlantUML Diagram';
+            img.className = 'plantuml-diagram';
+        });
+    }
+    
+    // HTML 转义辅助函数
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * 显示功能演示文档
+     * 用于在用户首次使用时展示软件的全部能力
+     */
+    showFeaturesDemo() {
+        // 内置的功能演示文档
+        const demoContent = `# 🎨 MD Viewer 功能演示
+
+欢迎使用 MD Viewer！这是一个功能强大的 Markdown 阅读器，支持多种图表和格式。
+
+---
+
+## 📊 Mermaid 图表
+
+### 流程图
+
+\`\`\`mermaid
+graph TD
+    A[开始使用 MD Viewer] --> B{选择文件夹}
+    B --> C[浏览文件列表]
+    C --> D[选择 Markdown 文件]
+    D --> E[实时预览]
+    E --> F{需要编辑?}
+    F -->|是| G[分栏编辑模式]
+    F -->|否| H[继续阅读]
+    G --> I[保存文件]
+    I --> E
+\`\`\`
+
+### 时序图
+
+\`\`\`mermaid
+sequenceDiagram
+    participant 用户
+    participant MD Viewer
+    participant 文件系统
+    
+    用户->>MD Viewer: 打开文件夹
+    MD Viewer->>文件系统: 请求读取权限
+    文件系统-->>MD Viewer: 授权成功
+    MD Viewer->>文件系统: 读取 .md 文件列表
+    文件系统-->>MD Viewer: 返回文件列表
+    MD Viewer-->>用户: 显示文件树
+    用户->>MD Viewer: 点击文件
+    MD Viewer->>文件系统: 读取文件内容
+    文件系统-->>MD Viewer: 返回内容
+    MD Viewer-->>用户: 渲染预览
+\`\`\`
+
+### 饼图
+
+\`\`\`mermaid
+pie title MD Viewer 支持的功能
+    "Markdown 语法" : 30
+    "代码高亮" : 20
+    "Mermaid 图表" : 20
+    "PlantUML 图表" : 15
+    "数学公式" : 15
+\`\`\`
+
+### 状态图
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> 浅色主题
+    浅色主题 --> 深色主题: 点击切换
+    深色主题 --> 浅色主题: 点击切换
+    浅色主题 --> [*]
+    深色主题 --> [*]
+\`\`\`
+
+---
+
+## 🏗️ PlantUML 图表
+
+PlantUML 提供更专业的 UML 图表支持。
+
+### 时序图
+
+\`\`\`plantuml
+@startuml
+skinparam backgroundColor #FEFEFE
+
+actor 用户 as U
+participant "前端" as F
+participant "后端" as B
+database "数据库" as D
+
+U -> F: 请求数据
+activate F
+F -> B: API 调用
+activate B
+B -> D: 查询
+activate D
+D --> B: 返回结果
+deactivate D
+B --> F: 响应数据
+deactivate B
+F --> U: 显示结果
+deactivate F
+@enduml
+\`\`\`
+
+### 类图
+
+\`\`\`plantuml
+@startuml
+class MDViewer {
+    - currentFile: String
+    - isModified: Boolean
+    + loadFile(): void
+    + saveFile(): void
+    + updatePreview(): void
+}
+
+class Editor {
+    - content: String
+    + getValue(): String
+    + setValue(): void
+}
+
+class Preview {
+    + render(): void
+    + renderMermaid(): void
+    + renderPlantUML(): void
+}
+
+MDViewer *-- Editor
+MDViewer *-- Preview
+@enduml
+\`\`\`
+
+### 思维导图
+
+\`\`\`plantuml
+@startmindmap
+* MD Viewer
+** 📁 文件管理
+*** 打开文件夹
+*** 最近打开
+*** 文件搜索
+** ✏️ 编辑功能
+*** 实时预览
+*** 分栏模式
+** 🎨 渲染支持
+*** Mermaid
+*** PlantUML
+*** 数学公式
+** 🌙 主题
+*** 浅色
+*** 深色
+@endmindmap
+\`\`\`
+
+### 活动图
+
+\`\`\`plantuml
+@startuml
+start
+:打开 MD Viewer;
+if (有上次打开的文件夹?) then (是)
+    :自动恢复;
+else (否)
+    :显示欢迎页面;
+endif
+:选择文件;
+:渲染内容;
+fork
+    :渲染 Markdown;
+fork again
+    :渲染 Mermaid;
+fork again
+    :渲染 PlantUML;
+end fork
+:显示预览;
+stop
+@enduml
+\`\`\`
+
+---
+
+## 💻 代码高亮
+
+支持 180+ 种编程语言的语法高亮。
+
+### JavaScript
+
+\`\`\`javascript
+// 异步函数示例
+async function fetchData(url) {
+    try {
+        const response = await fetch(url);
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+\`\`\`
+
+### Python
+
+\`\`\`python
+def fibonacci(n):
+    """生成斐波那契数列"""
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+# 使用生成器
+for num in fibonacci(10):
+    print(num)
+\`\`\`
+
+---
+
+## 📐 数学公式
+
+使用 KaTeX 渲染数学公式。
+
+### 行内公式
+
+著名的质能方程 $E = mc^2$，以及勾股定理 $a^2 + b^2 = c^2$。
+
+### 块级公式
+
+$$
+\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+$$
+
+$$
+\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}
+$$
+
+---
+
+## 📋 其他功能
+
+### 表格
+
+| 功能 | Mermaid | PlantUML |
+|------|:-------:|:--------:|
+| 流程图 | ✅ | ✅ |
+| 时序图 | ✅ | ✅ |
+| 类图 | ✅ | ✅ |
+| 思维导图 | ❌ | ✅ |
+| 甘特图 | ✅ | ✅ |
+| 离线使用 | ✅ | ❌ |
+
+### 任务列表
+
+- [x] 支持 Mermaid 图表
+- [x] 支持 PlantUML 图表
+- [x] 支持数学公式
+- [x] 深色/浅色主题切换
+- [x] 文件夹记忆功能
+- [ ] 导出为 PDF
+
+### 引用
+
+> 💡 **提示**: 双击任意图表可以放大查看！
+
+---
+
+**开始使用**: 点击左侧"打开文件夹"按钮，选择包含 Markdown 文件的文件夹即可开始！ 🚀
+`;
+
+        // 隐藏欢迎页面，显示预览
+        this.welcomePage.style.display = 'none';
+        this.previewContainer.style.display = 'flex';
+        this.editorContainer.style.display = 'none';
+        this.splitResizer.style.display = 'none';
+        
+        // 更新标题
+        this.currentFileEl.textContent = '📖 功能演示 (内置文档)';
+        
+        // 渲染演示内容
+        this.preview.innerHTML = marked.parse(demoContent);
+        
+        // 重新高亮代码块
+        this.preview.querySelectorAll('pre code:not(.mermaid)').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+        
+        // 渲染 Mermaid 图表
+        if (typeof mermaid !== 'undefined') {
+            const mermaidElements = this.preview.querySelectorAll('.mermaid');
+            if (mermaidElements.length > 0) {
+                mermaidElements.forEach((element, index) => {
+                    element.id = `mermaid-demo-${Date.now()}-${index}`;
+                });
+                mermaid.run({ nodes: mermaidElements }).then(() => {
+                    setTimeout(() => {
+                        this.attachDiagramZoomHandlers();
+                    }, 100);
+                });
+            }
+        }
+        
+        // 渲染 PlantUML 图表
+        this.renderPlantUML();
+        
+        // 渲染数学公式
+        if (typeof renderMathInElement !== 'undefined') {
+            renderMathInElement(this.preview, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+        
+        this.showToast('正在加载功能演示...', 'info');
+    }
+    
+    // ==================== 导出功能 ====================
+    
+    /**
+     * 初始化导出功能
+     */
+    initExportFeature() {
+        const exportBtn = document.getElementById('exportBtn');
+        const exportMenu = document.getElementById('exportMenu');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const exportWordBtn = document.getElementById('exportWordBtn');
+        const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+        
+        if (!exportBtn || !exportMenu) return;
+        
+        // 切换下拉菜单
+        exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportMenu.classList.toggle('show');
+        });
+        
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', () => {
+            exportMenu.classList.remove('show');
+        });
+        
+        // 导出PDF
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', () => {
+                exportMenu.classList.remove('show');
+                this.exportToPdf();
+            });
+        }
+        
+        // 导出Word
+        if (exportWordBtn) {
+            exportWordBtn.addEventListener('click', () => {
+                exportMenu.classList.remove('show');
+                this.exportToWord();
+            });
+        }
+        
+        // 导出HTML
+        if (exportHtmlBtn) {
+            exportHtmlBtn.addEventListener('click', () => {
+                exportMenu.classList.remove('show');
+                this.exportToHtml();
+            });
+        }
+    }
+    
+    /**
+     * 获取当前文件名（不带扩展名）
+     */
+    getExportFileName() {
+        const currentFile = this.currentFileEl.textContent;
+        if (!currentFile || currentFile.includes('请打开') || currentFile.includes('功能演示')) {
+            return 'document';
+        }
+        // 提取文件名，去掉路径和扩展名
+        const fileName = currentFile.split('/').pop().split('\\').pop();
+        return fileName.replace(/\.(md|markdown)$/i, '') || 'document';
+    }
+    
+    /**
+     * 显示导出进度
+     */
+    showExportProgress(message) {
+        const overlay = document.createElement('div');
+        overlay.className = 'export-overlay';
+        overlay.id = 'exportOverlay';
+        overlay.innerHTML = `
+            <div class="export-progress">
+                <i class="fas fa-spinner"></i>
+                <p>${message}</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    /**
+     * 隐藏导出进度
+     */
+    hideExportProgress() {
+        const overlay = document.getElementById('exportOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+    
+    /**
+     * 获取完整的导出样式
+     */
+    getExportStyles() {
+        return `
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+                font-size: 16px;
+                line-height: 1.6;
+                color: #24292e;
+                background: #fff;
+                padding: 40px;
+                max-width: 900px;
+                margin: 0 auto;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                margin-top: 24px;
+                margin-bottom: 16px;
+                font-weight: 600;
+                line-height: 1.25;
+            }
+            h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+            h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+            h3 { font-size: 1.25em; }
+            h4 { font-size: 1em; }
+            p { margin: 0 0 16px 0; }
+            a { color: #0366d6; text-decoration: none; }
+            strong { font-weight: 600; }
+            em { font-style: italic; }
+            code {
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+                font-size: 85%;
+                background-color: rgba(27,31,35,0.05);
+                padding: 0.2em 0.4em;
+                border-radius: 3px;
+            }
+            pre {
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+                font-size: 85%;
+                background-color: #f6f8fa;
+                border-radius: 6px;
+                padding: 16px;
+                overflow: auto;
+                line-height: 1.45;
+                margin: 0 0 16px 0;
+            }
+            pre code {
+                background: transparent;
+                padding: 0;
+                font-size: 100%;
+            }
+            blockquote {
+                margin: 0 0 16px 0;
+                padding: 0 1em;
+                color: #6a737d;
+                border-left: 0.25em solid #dfe2e5;
+            }
+            ul, ol {
+                margin: 0 0 16px 0;
+                padding-left: 2em;
+            }
+            li { margin: 0.25em 0; }
+            li + li { margin-top: 0.25em; }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 0 0 16px 0;
+            }
+            table th, table td {
+                border: 1px solid #dfe2e5;
+                padding: 6px 13px;
+            }
+            table th {
+                font-weight: 600;
+                background-color: #f6f8fa;
+            }
+            table tr:nth-child(2n) {
+                background-color: #f6f8fa;
+            }
+            hr {
+                height: 0.25em;
+                padding: 0;
+                margin: 24px 0;
+                background-color: #e1e4e8;
+                border: 0;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 16px auto;
+            }
+            svg {
+                max-width: 100%;
+                height: auto;
+            }
+            .mermaid, .plantuml {
+                text-align: center;
+                margin: 24px 0;
+                page-break-inside: avoid;
+            }
+            .mermaid svg, .plantuml img {
+                max-width: 100%;
+                height: auto;
+            }
+            .task-list-item {
+                list-style-type: none;
+            }
+            .task-list-item input {
+                margin-right: 0.5em;
+            }
+            @media print {
+                body { padding: 0; }
+                pre, code { white-space: pre-wrap; word-wrap: break-word; }
+                .mermaid, .plantuml { page-break-inside: avoid; }
+            }
+        `;
+    }
+    
+    /**
+     * 获取用于导出的HTML内容（包含处理后的图表）
+     */
+    getExportHtmlContent() {
+        // 克隆预览区内容
+        const content = this.preview.cloneNode(true);
+        
+        // 移除不需要导出的元素
+        content.querySelectorAll('.zoom-hint, .copy-btn, .plantuml-loading').forEach(el => el.remove());
+        
+        return content.innerHTML;
+    }
+    
+    /**
+     * 导出为PDF（使用浏览器打印功能，效果最好）
+     */
+    async exportToPdf() {
+        if (!this.preview.innerHTML || this.preview.innerHTML.trim() === '') {
+            this.showToast('没有可导出的内容', 'warning');
+            return;
+        }
+        
+        const fileName = this.getExportFileName();
+        
+        // 创建打印窗口
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            this.showToast('请允许弹出窗口以导出PDF', 'warning');
+            return;
+        }
+        
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>${fileName}</title>
+    <style>${this.getExportStyles()}</style>
+</head>
+<body>
+    ${this.getExportHtmlContent()}
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+            }, 500);
+        };
+    <\/script>
+</body>
+</html>`;
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        this.showToast('请在打印对话框中选择"另存为PDF"', 'info');
+    }
+    
+    /**
+     * 导出为Word
+     */
+    async exportToWord() {
+        if (!this.preview.innerHTML || this.preview.innerHTML.trim() === '') {
+            this.showToast('没有可导出的内容', 'warning');
+            return;
+        }
+        
+        const fileName = this.getExportFileName();
+        this.showExportProgress('正在生成 Word 文档...');
+        
+        try {
+            // 将SVG图表转换为图片数据
+            const content = this.preview.cloneNode(true);
+            
+            // 移除不需要的元素
+            content.querySelectorAll('.zoom-hint, .copy-btn, .plantuml-loading').forEach(el => el.remove());
+            
+            // 处理Mermaid SVG - 转换为内联样式
+            content.querySelectorAll('.mermaid svg').forEach(svg => {
+                svg.setAttribute('width', '100%');
+                svg.style.maxWidth = '100%';
+            });
+            
+            // 构建Word兼容的HTML文档
+            const htmlContent = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+      xmlns:w="urn:schemas-microsoft-com:office:word" 
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>${fileName}</title>
+    <!--[if gte mso 9]>
+    <xml>
+        <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body {
+            font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #000;
+        }
+        h1 { font-size: 22pt; font-weight: bold; margin: 24pt 0 12pt 0; border-bottom: 1pt solid #ccc; padding-bottom: 6pt; }
+        h2 { font-size: 18pt; font-weight: bold; margin: 20pt 0 10pt 0; border-bottom: 1pt solid #eee; padding-bottom: 4pt; }
+        h3 { font-size: 14pt; font-weight: bold; margin: 16pt 0 8pt 0; }
+        h4 { font-size: 12pt; font-weight: bold; margin: 14pt 0 6pt 0; }
+        p { margin: 0 0 12pt 0; }
+        code {
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 10pt;
+            background-color: #f5f5f5;
+            padding: 2pt 4pt;
+        }
+        pre {
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 10pt;
+            background-color: #f5f5f5;
+            padding: 12pt;
+            border: 1pt solid #ddd;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        pre code { background: none; padding: 0; }
+        blockquote {
+            margin: 12pt 0;
+            padding: 6pt 12pt;
+            border-left: 4pt solid #ddd;
+            color: #666;
+        }
+        table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+        th, td { border: 1pt solid #000; padding: 6pt 10pt; }
+        th { background-color: #f0f0f0; font-weight: bold; }
+        ul, ol { margin: 12pt 0; padding-left: 24pt; }
+        li { margin: 4pt 0; }
+        img { max-width: 100%; height: auto; }
+        a { color: #0066cc; }
+        hr { border: none; border-top: 1pt solid #ccc; margin: 18pt 0; }
+        .mermaid, .plantuml { text-align: center; margin: 18pt 0; }
+    </style>
+</head>
+<body>
+    ${content.innerHTML}
+</body>
+</html>`;
+            
+            // 创建Blob并下载
+            const blob = new Blob(['\ufeff' + htmlContent], { 
+                type: 'application/msword;charset=utf-8' 
+            });
+            
+            // 使用FileSaver或原生下载
+            if (typeof saveAs !== 'undefined') {
+                saveAs(blob, `${fileName}.doc`);
+            } else {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${fileName}.doc`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+            
+            this.hideExportProgress();
+            this.showToast(`已导出: ${fileName}.doc`, 'success');
+        } catch (error) {
+            this.hideExportProgress();
+            console.error('Word导出失败:', error);
+            this.showToast('Word导出失败: ' + error.message, 'error');
+        }
+    }
+    
+    /**
+     * 导出为HTML
+     */
+    async exportToHtml() {
+        if (!this.preview.innerHTML || this.preview.innerHTML.trim() === '') {
+            this.showToast('没有可导出的内容', 'warning');
+            return;
+        }
+        
+        const fileName = this.getExportFileName();
+        
+        try {
+            // 构建完整的独立HTML文档，内联所有样式
+            const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${fileName}</title>
+    <style>
+        ${this.getExportStyles()}
+        /* Mermaid图表容器 */
+        .mermaid { text-align: center; margin: 24px 0; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        /* PlantUML图表容器 */
+        .plantuml { text-align: center; margin: 24px 0; }
+        .plantuml img { max-width: 100%; height: auto; }
+        /* 代码高亮基础样式 */
+        .hljs { display: block; overflow-x: auto; padding: 0.5em; background: #f6f8fa; }
+        .hljs-comment, .hljs-quote { color: #6a737d; }
+        .hljs-keyword, .hljs-selector-tag { color: #d73a49; }
+        .hljs-string, .hljs-attr { color: #032f62; }
+        .hljs-number, .hljs-literal { color: #005cc5; }
+        .hljs-function, .hljs-title { color: #6f42c1; }
+        .hljs-built_in, .hljs-builtin-name { color: #005cc5; }
+    </style>
+</head>
+<body>
+${this.getExportHtmlContent()}
+</body>
+</html>`;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            
+            if (typeof saveAs !== 'undefined') {
+                saveAs(blob, `${fileName}.html`);
+            } else {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${fileName}.html`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+            
+            this.showToast(`已导出: ${fileName}.html`, 'success');
+        } catch (error) {
+            console.error('HTML导出失败:', error);
+            this.showToast('HTML导出失败: ' + error.message, 'error');
+        }
     }
     
     // 更新目录内容
