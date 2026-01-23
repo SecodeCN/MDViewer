@@ -725,9 +725,9 @@ class MDViewerStandalone {
             // 0.1 处理时序图消息中的特殊字符（括号等）
             if (isSequenceDiagram) {
                 // 匹配时序图消息: Actor->>Actor: Message 或 Actor-->>Actor: Message
-                // 消息部分包含括号时需要用引号包裹
+                // 支持的箭头: -> --> ->> -->> -x --x -) --)
                 result = result.replace(
-                    /^(\s*)(\w+)([-]+>+[-]*)(\w+):\s*(.+)$/gm,
+                    /^(\s*)(\w+)(--?>>?|--?[x)]|--?>)(\w+):\s*(.+)$/gm,
                     (match, indent, from, arrow, to, message) => {
                         // 如果消息已经用引号包裹，保持不变
                         if (message.startsWith('"') && message.endsWith('"')) {

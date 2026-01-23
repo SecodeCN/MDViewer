@@ -69,8 +69,9 @@ class MDViewer {
             // 处理时序图消息中的特殊字符（括号等）
             if (isSequenceDiagram) {
                 // 匹配时序图消息: Actor->>Actor: Message
+                // 支持的箭头: -> --> ->> -->> -x --x -) --)
                 result = result.replace(
-                    /^(\s*)(\w+)([-]+>+[-]*)(\w+):\s*(.+)$/gm,
+                    /^(\s*)(\w+)(--?>>?|--?[x)]|--?>)(\w+):\s*(.+)$/gm,
                     (match, indent, from, arrow, to, message) => {
                         if (message.startsWith('"') && message.endsWith('"')) {
                             return match;
