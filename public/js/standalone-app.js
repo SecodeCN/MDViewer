@@ -4127,7 +4127,7 @@ ${this.getExportHtmlContent()}
     
     // 调整缩放
     adjustZoom(delta) {
-        this.currentZoomScale = Math.max(0.5, Math.min(5, this.currentZoomScale + delta));
+        this.currentZoomScale = Math.max(0.5, Math.min(10, this.currentZoomScale + delta));
         this.updateZoomTransform();
     }
     
