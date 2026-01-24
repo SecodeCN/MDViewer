@@ -1369,20 +1369,34 @@ class MDViewerStandalone {
         }
         
         // 尝试作为 UTF-8 解码（严格模式）
-        let isValidUtf8 = false;
         try {
             const decoder = new TextDecoder('utf-8', { fatal: true });
             const decoded = decoder.decode(testArr);
-            isValidUtf8 = true;
             
-            // 即使UTF-8解码成功，也要检查是否更可能是GBK编码
-            // 通过统计中文字符模式来判断
-            const gbkScore = this.calculateGbkScore(testArr);
-            const utf8Score = this.calculateUtf8Score(decoded);
+            // UTF-8 解码成功，进一步验证是否真的是 UTF-8
+            // 检查是否包含有效的 UTF-8 多字节序列
+            const utf8Validity = this.checkUtf8Validity(testArr);
             
-            // 如果GBK得分明显高于UTF-8，则判定为GBK
-            if (gbkScore > utf8Score * 1.5) {
-                return 'gbk';
+            // 如果 UTF-8 序列有效性高（包含正确的多字节序列），则判定为 UTF-8
+            if (utf8Validity > 0.5) {
+                return 'utf-8';
+            }
+            
+            // 否则，尝试用 GBK 解码来对比
+            try {
+                const gbkDecoder = new TextDecoder('gbk');
+                const gbkDecoded = gbkDecoder.decode(testArr);
+                
+                // 比较两种解码结果的质量
+                const utf8Score = this.calculateUtf8Score(decoded);
+                const gbkScore = this.calculateUtf8Score(gbkDecoded); // 使用相同的评分方法
+                
+                // 如果 GBK 解码后的中文字符更多，则可能是 GBK
+                if (gbkScore > utf8Score * 1.2) {
+                    return 'gbk';
+                }
+            } catch (e) {
+                // GBK 解码失败，使用 UTF-8
             }
             
             return 'utf-8';
@@ -1392,7 +1406,53 @@ class MDViewerStandalone {
         }
     }
     
-    // 计算 GBK 编码的可能性得分
+    // 检查 UTF-8 编码的有效性
+    checkUtf8Validity(bytes) {
+        let validSequences = 0;
+        let totalSequences = 0;
+        let i = 0;
+        
+        while (i < bytes.length) {
+            const b = bytes[i];
+            
+            if (b < 0x80) {
+                // ASCII
+                i++;
+                continue;
+            }
+            
+            // 检查多字节序列
+            let seqLength = 0;
+            if ((b & 0xE0) === 0xC0) seqLength = 2;      // 110xxxxx
+            else if ((b & 0xF0) === 0xE0) seqLength = 3; // 1110xxxx
+            else if ((b & 0xF8) === 0xF0) seqLength = 4; // 11110xxx
+            else {
+                i++;
+                continue;
+            }
+            
+            totalSequences++;
+            
+            // 验证后续字节
+            let valid = true;
+            for (let j = 1; j < seqLength; j++) {
+                if (i + j >= bytes.length || (bytes[i + j] & 0xC0) !== 0x80) {
+                    valid = false;
+                    break;
+                }
+            }
+            
+            if (valid) {
+                validSequences++;
+            }
+            
+            i += seqLength;
+        }
+        
+        return totalSequences > 0 ? validSequences / totalSequences : 0;
+    }
+    
+    // 计算 GBK 编码的可能性得分（已废弃，保留以防需要）
     calculateGbkScore(bytes) {
         let score = 0;
         let i = 0;
