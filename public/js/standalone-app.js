@@ -7,7 +7,7 @@ class MDViewerStandalone {
         this.isModified = false;
         this.viewMode = 'split'; // 默认分栏模式
         this.fileHandles = new Map();
-        this.manualEncoding = 'auto';
+        this.manualEncoding = 'utf-8';
         this.splitRatio = 50; // 分栏比例（百分比）
         this.isResizing = false;
         this.basePath = ''; // 用户设置的文件夹完整路径前缀
