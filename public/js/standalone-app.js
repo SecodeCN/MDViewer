@@ -11,6 +11,12 @@ class MDViewerStandalone {
         this.splitRatio = 50; // 分栏比例（百分比）
         this.isResizing = false;
         this.basePath = ''; // 用户设置的文件夹完整路径前缀
+        
+        // 编码检测参数
+        this.UTF8_VALIDITY_THRESHOLD = 0.5;  // UTF-8 序列有效性阈值
+        this.GBK_SCORE_MULTIPLIER = 1.2;     // GBK 评分倍数阈值
+        
+        // IndexedDB 配置
         this.dbName = 'md-viewer-db';
         this.storeName = 'folders';
         this.recentFoldersStore = 'recentFolders';
@@ -658,6 +664,11 @@ class MDViewerStandalone {
         this.encodingSelect = document.getElementById('encodingSelect');
         this.splitResizer = document.getElementById('splitResizer');
         this.currentFileName = document.getElementById('currentFile');
+        
+        // 确保编码选择器同步到默认值
+        if (this.encodingSelect) {
+            this.encodingSelect.value = this.manualEncoding;
+        }
         
         // 目录面板元素
         this.tocPanel = document.getElementById('tocPanel');
@@ -1346,8 +1357,9 @@ class MDViewerStandalone {
             return 'utf-16be';
         }
         
-        // 尝试检测 GBK (简单启发式检测)
-        const testArr = new Uint8Array(buffer.slice(0, Math.min(1000, buffer.byteLength)));
+        // 使用更多字节进行检测以提高准确性
+        const sampleSize = Math.min(4000, buffer.byteLength);
+        const testArr = new Uint8Array(buffer.slice(0, sampleSize));
         let hasHighByte = false;
         
         for (let i = 0; i < testArr.length; i++) {
@@ -1357,20 +1369,114 @@ class MDViewerStandalone {
             }
         }
         
-        // 如果有高位字节，尝试作为 UTF-8 解码
-        if (hasHighByte) {
-            try {
-                const decoder = new TextDecoder('utf-8', { fatal: true });
-                decoder.decode(testArr);
+        // 如果没有高位字节，是纯 ASCII，默认 UTF-8
+        if (!hasHighByte) {
+            return 'utf-8';
+        }
+        
+        // 尝试作为 UTF-8 解码（严格模式）
+        try {
+            const decoder = new TextDecoder('utf-8', { fatal: true });
+            const decoded = decoder.decode(testArr);
+            
+            // UTF-8 解码成功，进一步验证是否真的是 UTF-8
+            // 检查是否包含有效的 UTF-8 多字节序列
+            const utf8Validity = this.checkUtf8Validity(testArr);
+            
+            // 如果 UTF-8 序列有效性高（包含正确的多字节序列），则判定为 UTF-8
+            if (utf8Validity > this.UTF8_VALIDITY_THRESHOLD) {
                 return 'utf-8';
+            }
+            
+            // 否则，尝试用 GBK 解码来对比
+            try {
+                const gbkDecoder = new TextDecoder('gbk');
+                const gbkDecoded = gbkDecoder.decode(testArr);
+                
+                // 比较两种解码结果的质量
+                const utf8Score = this.calculateUtf8Score(decoded);
+                const gbkScore = this.calculateUtf8Score(gbkDecoded); // 使用相同的评分方法
+                
+                // 如果 GBK 解码后的中文字符更多，则可能是 GBK
+                if (gbkScore > utf8Score * this.GBK_SCORE_MULTIPLIER) {
+                    return 'gbk';
+                }
             } catch (e) {
-                // UTF-8 解码失败，可能是 GBK
-                return 'gbk';
+                // GBK 解码失败，使用 UTF-8
+            }
+            
+            return 'utf-8';
+        } catch (e) {
+            // UTF-8 解码失败，尝试 GBK
+            return 'gbk';
+        }
+    }
+    
+    // 检查 UTF-8 编码的有效性
+    checkUtf8Validity(bytes) {
+        let validSequences = 0;
+        let totalSequences = 0;
+        let i = 0;
+        
+        while (i < bytes.length) {
+            const b = bytes[i];
+            
+            if (b < 0x80) {
+                // ASCII
+                i++;
+                continue;
+            }
+            
+            // 检查多字节序列
+            let seqLength = 0;
+            if ((b & 0xE0) === 0xC0) seqLength = 2;      // 110xxxxx
+            else if ((b & 0xF0) === 0xE0) seqLength = 3; // 1110xxxx
+            else if ((b & 0xF8) === 0xF0) seqLength = 4; // 11110xxx
+            else {
+                i++;
+                continue;
+            }
+            
+            totalSequences++;
+            
+            // 验证后续字节
+            let valid = true;
+            for (let j = 1; j < seqLength; j++) {
+                if (i + j >= bytes.length || (bytes[i + j] & 0xC0) !== 0x80) {
+                    valid = false;
+                    break;
+                }
+            }
+            
+            if (valid) {
+                validSequences++;
+            }
+            
+            i += seqLength;
+        }
+        
+        return totalSequences > 0 ? validSequences / totalSequences : 0;
+    }
+    
+    // 计算 UTF-8 编码的可能性得分
+    calculateUtf8Score(text) {
+        let score = 0;
+        
+        // 检查常见中文 Unicode 范围
+        for (let i = 0; i < text.length; i++) {
+            const code = text.charCodeAt(i);
+            
+            // 中文常用字符范围 (0x4E00-0x9FFF)
+            if (code >= 0x4E00 && code <= 0x9FFF) {
+                score += 2;
+            }
+            // 中文标点符号等
+            else if (code >= 0x3000 && code <= 0x303F) {
+                score += 1;
             }
         }
         
-        // 默认 UTF-8
-        return 'utf-8';
+        return score;
     }
     
     // 解码文件内容
