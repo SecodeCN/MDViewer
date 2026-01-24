@@ -11,6 +11,12 @@ class MDViewerStandalone {
         this.splitRatio = 50; // 分栏比例（百分比）
         this.isResizing = false;
         this.basePath = ''; // 用户设置的文件夹完整路径前缀
+        
+        // 编码检测参数
+        this.UTF8_VALIDITY_THRESHOLD = 0.5;  // UTF-8 序列有效性阈值
+        this.GBK_SCORE_MULTIPLIER = 1.2;     // GBK 评分倍数阈值
+        
+        // IndexedDB 配置
         this.dbName = 'md-viewer-db';
         this.storeName = 'folders';
         this.recentFoldersStore = 'recentFolders';
@@ -1378,7 +1384,7 @@ class MDViewerStandalone {
             const utf8Validity = this.checkUtf8Validity(testArr);
             
             // 如果 UTF-8 序列有效性高（包含正确的多字节序列），则判定为 UTF-8
-            if (utf8Validity > 0.5) {
+            if (utf8Validity > this.UTF8_VALIDITY_THRESHOLD) {
                 return 'utf-8';
             }
             
@@ -1392,7 +1398,7 @@ class MDViewerStandalone {
                 const gbkScore = this.calculateUtf8Score(gbkDecoded); // 使用相同的评分方法
                 
                 // 如果 GBK 解码后的中文字符更多，则可能是 GBK
-                if (gbkScore > utf8Score * 1.2) {
+                if (gbkScore > utf8Score * this.GBK_SCORE_MULTIPLIER) {
                     return 'gbk';
                 }
             } catch (e) {
@@ -1450,34 +1456,6 @@ class MDViewerStandalone {
         }
         
         return totalSequences > 0 ? validSequences / totalSequences : 0;
-    }
-    
-    // 计算 GBK 编码的可能性得分（已废弃，保留以防需要）
-    calculateGbkScore(bytes) {
-        let score = 0;
-        let i = 0;
-        
-        while (i < bytes.length - 1) {
-            const b1 = bytes[i];
-            const b2 = bytes[i + 1];
-            
-            // GBK 高字节范围: 0x81-0xFE, 低字节范围: 0x40-0xFE (除了0x7F)
-            if (b1 >= 0x81 && b1 <= 0xFE) {
-                if ((b2 >= 0x40 && b2 <= 0x7E) || (b2 >= 0x80 && b2 <= 0xFE)) {
-                    // 常用中文区 (0xB0-0xF7)
-                    if (b1 >= 0xB0 && b1 <= 0xF7) {
-                        score += 3;
-                    } else {
-                        score += 2;
-                    }
-                    i += 2;
-                    continue;
-                }
-            }
-            i++;
-        }
-        
-        return score;
     }
     
     // 计算 UTF-8 编码的可能性得分
