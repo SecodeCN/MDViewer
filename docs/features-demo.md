@@ -338,6 +338,284 @@ classDiagram
     Animal <|-- Cat
 ```
 
+### ER 关系图
+
+```mermaid
+erDiagram
+    用户 ||--o{ 订单 : 创建
+    订单 ||--|{ 订单明细 : 包含
+    商品 ||--o{ 订单明细 : 关联
+    用户 {
+        int id PK
+        string 用户名
+        string 邮箱
+    }
+    订单 {
+        int id PK
+        date 下单时间
+        float 总金额
+    }
+```
+
+---
+
+## 🏗️ PlantUML 图表
+
+PlantUML 是另一种强大的 UML 图表工具，支持更多专业图表类型。
+
+### PlantUML 时序图
+
+```plantuml
+@startuml
+skinparam backgroundColor #FEFEFE
+skinparam sequenceMessageAlign center
+
+actor 用户 as U
+participant "前端应用" as F
+participant "后端服务" as B
+database "数据库" as D
+
+U -> F: 1. 点击登录按钮
+activate F
+F -> B: 2. 发送登录请求
+activate B
+B -> D: 3. 验证用户信息
+activate D
+D --> B: 4. 返回用户数据
+deactivate D
+B --> F: 5. 返回登录结果
+deactivate B
+F --> U: 6. 显示登录成功
+deactivate F
+@enduml
+```
+
+### PlantUML 用例图
+
+```plantuml
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor 普通用户 as User
+actor 管理员 as Admin
+
+rectangle "MD Viewer 系统" {
+    User -- (打开文件夹)
+    User -- (浏览Markdown文件)
+    User -- (编辑文件)
+    User -- (切换主题)
+    Admin -- (管理用户)
+    Admin -- (系统配置)
+    (编辑文件) .> (保存文件) : include
+    (浏览Markdown文件) .> (渲染预览) : include
+}
+@enduml
+```
+
+### PlantUML 类图
+
+```plantuml
+@startuml
+skinparam classAttributeIconSize 0
+
+class MDViewer {
+    - currentFile: String
+    - isModified: Boolean
+    - viewMode: String
+    --
+    + initMarked(): void
+    + loadFile(path): Promise
+    + saveFile(): Promise
+    + updatePreview(): void
+}
+
+class Editor {
+    - content: String
+    - encoding: String
+    --
+    + getValue(): String
+    + setValue(text): void
+}
+
+class Preview {
+    - htmlContent: String
+    --
+    + render(markdown): void
+    + renderMermaid(): void
+    + renderPlantUML(): void
+}
+
+class DiagramRenderer {
+    <<interface>>
+    + encode(code): String
+    + render(element): void
+}
+
+MDViewer *-- Editor
+MDViewer *-- Preview
+Preview ..> DiagramRenderer
+@enduml
+```
+
+### PlantUML 活动图
+
+```plantuml
+@startuml
+start
+:用户打开 MD Viewer;
+if (是否有上次打开的文件夹?) then (是)
+    :自动恢复文件夹;
+    :加载文件列表;
+else (否)
+    :显示欢迎页面;
+endif
+
+:用户选择Markdown文件;
+:读取文件内容;
+:解析Markdown语法;
+
+fork
+    :渲染普通文本;
+fork again
+    :渲染代码高亮;
+fork again
+    :渲染Mermaid图表;
+fork again
+    :渲染PlantUML图表;
+fork again
+    :渲染数学公式;
+end fork
+
+:显示预览结果;
+stop
+@enduml
+```
+
+### PlantUML 组件图
+
+```plantuml
+@startuml
+skinparam componentStyle rectangle
+
+package "MD Viewer 前端" {
+    [standalone-app.js] as app
+    [marked.js] as marked
+    [highlight.js] as hljs
+    [mermaid.js] as mermaid
+    [plantuml-encoder] as encoder
+    [KaTeX] as katex
+}
+
+package "外部服务" {
+    [PlantUML Server] as pumlserver
+}
+
+package "浏览器 API" {
+    [File System Access API] as fsapi
+    [IndexedDB] as idb
+}
+
+app --> marked : Markdown解析
+app --> hljs : 代码高亮
+app --> mermaid : Mermaid渲染
+app --> encoder : PlantUML编码
+app --> katex : 公式渲染
+encoder --> pumlserver : SVG请求
+app --> fsapi : 文件读写
+app --> idb : 数据持久化
+@enduml
+```
+
+### PlantUML 状态图
+
+```plantuml
+@startuml
+skinparam stateBackgroundColor #f0f0f0
+
+[*] --> 空闲
+
+state 空闲 {
+    [*] --> 等待输入
+    等待输入 --> 欢迎页面 : 显示欢迎信息
+}
+
+空闲 --> 编辑中 : 打开文件
+编辑中 --> 已修改 : 修改内容
+已修改 --> 编辑中 : 保存成功
+已修改 --> 编辑中 : 放弃修改
+编辑中 --> 空闲 : 关闭文件
+已修改 --> 空闲 : 确认关闭
+
+state 编辑中 {
+    [*] --> 预览模式
+    预览模式 --> 分栏模式 : 切换
+    分栏模式 --> 预览模式 : 切换
+}
+
+@enduml
+```
+
+### PlantUML 思维导图
+
+```plantuml
+@startmindmap
+* MD Viewer
+** 📁 文件管理
+*** 打开文件夹
+*** 文件树导航
+*** 最近打开
+*** 文件搜索
+** ✏️ 编辑功能
+*** 实时预览
+*** 分栏模式
+*** 快捷保存
+** 🎨 渲染能力
+*** Markdown 语法
+**** GFM 支持
+**** 任务列表
+**** 表格
+*** 代码高亮
+**** 180+ 语言
+*** 图表支持
+**** Mermaid
+**** PlantUML
+*** 数学公式
+**** KaTeX
+** 🌙 用户体验
+*** 深色/浅色主题
+*** 目录导航
+*** 图表缩放
+@endmindmap
+```
+
+### PlantUML 甘特图
+
+```plantuml
+@startgantt
+title MD Viewer 开发计划
+project starts 2024-01-01
+
+[需求分析] lasts 5 days
+[UI设计] lasts 7 days
+[UI设计] starts at [需求分析]'s end
+
+[核心开发] lasts 15 days
+[核心开发] starts at [UI设计]'s end
+
+[Mermaid集成] lasts 5 days
+[Mermaid集成] starts at [核心开发]'s end
+
+[PlantUML集成] lasts 5 days
+[PlantUML集成] starts at [Mermaid集成]'s end
+
+[测试] lasts 7 days
+[测试] starts at [PlantUML集成]'s end
+
+[上线部署] happens at [测试]'s end
+@endgantt
+```
+
 ---
 
 ## 💬 引用
@@ -449,12 +727,25 @@ MD Viewer 支持：
 2. ✅ **180+ 种语言的代码高亮**
 3. ✅ **数学公式渲染（KaTeX）**
 4. ✅ **Mermaid 流程图和图表**
-5. ✅ **任务列表**
-6. ✅ **表格对齐**
-7. ✅ **Emoji 支持**
-8. ✅ **脚注和定义列表**
-9. ✅ **HTML 嵌入**
-10. ✅ **实时编辑和保存**
+5. ✅ **PlantUML 专业 UML 图表**
+6. ✅ **任务列表**
+7. ✅ **表格对齐**
+8. ✅ **Emoji 支持**
+9. ✅ **脚注和定义列表**
+10. ✅ **HTML 嵌入**
+11. ✅ **实时编辑和保存**
+12. ✅ **图表缩放功能**
+
+### Mermaid vs PlantUML 对比
+
+| 特性 | Mermaid | PlantUML |
+|------|:-------:|:--------:|
+| 渲染方式 | 客户端 | 服务器端 |
+| 离线使用 | ✅ 支持 | ❌ 需要网络 |
+| 语法简洁度 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| 图表类型 | 常用类型 | 更丰富 |
+| 专业 UML | 基础支持 | ⭐⭐⭐⭐⭐ |
+| 自定义样式 | 有限 | 丰富 |
 
 ---
 

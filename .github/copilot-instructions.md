@@ -47,6 +47,22 @@ server.js                     # HTTP server with REST-like API
   - Configuration in `initMarked()` method
 - **Custom Renderer**: Marked's code block renderer detects `language === 'mermaid'` and wraps in `<div class="mermaid">` instead of `<pre><code>`
 
+<<<<<<< HEAD
+=======
+### PlantUML Diagram Rendering
+
+- **Integration**: Uses `plantuml-encoder` library (loaded via CDN) to encode diagrams
+- **Server-side Rendering**: Diagrams are rendered via PlantUML online server (`plantuml.com/plantuml`)
+- **Supported Languages**: Code blocks with `plantuml` or `puml` language tag
+- **Diagram Types**: Sequence, Use Case, Class, Activity, Component, State, Mind Map, ER, Gantt charts
+- **Implementation**:
+  - `encodePlantUML()` method encodes diagram code using `plantuml-encoder`
+  - `renderPlantUML()` method generates image URLs and loads SVG from PlantUML server
+  - Automatic `@startuml`/`@enduml` wrapper if not present
+- **Error Handling**: Shows error message with original code if rendering fails
+- **Network Required**: PlantUML requires internet connection for server-side rendering
+
+>>>>>>> xinxun/main
 ### Diagram Zoom Feature (v1.6.0)
 
 **Location**: `standalone-app.js` lines ~865-1000, `markdown.css` lines ~450-550
@@ -142,16 +158,30 @@ DELETE /api/file?path=X  → Delete file
 3. **Split mode broken**: Verify `localStorage` key `md-viewer-split-ratio` exists and is valid number
 4. **Folder memory fails**: IndexedDB may be blocked in private browsing or cross-origin contexts
 5. **File save fails (standalone)**: Must request write permission via `requestPermission({mode: 'readwrite'})`
+<<<<<<< HEAD
+=======
+6. **PlantUML not rendering**: Check network connection; PlantUML requires `plantuml.com` server access
+7. **PlantUML encoder error**: Ensure `plantuml-encoder` library is loaded before rendering
+>>>>>>> xinxun/main
 
 ## When Modifying
 
 - **Adding Mermaid config**: Update both `app.js` and `standalone-app.js` → `mermaid.initialize()` calls
+<<<<<<< HEAD
 - **New CSS for diagrams**: Add to `markdown.css` under Mermaid section (~line 388+)
+=======
+- **Adding PlantUML config**: Update `this.plantumlServer` in `initMarked()` to change server URL
+- **New CSS for diagrams**: Add to `markdown.css` under Mermaid/PlantUML section (~line 388+)
+>>>>>>> xinxun/main
 - **Changing view modes**: Update `setViewMode()` method and toolbar button bindings
 - **API changes (server)**: Modify both `server.js` routes AND corresponding `fetch()` calls in `app.js`
 
 ## Documentation
 
 - User-facing docs in `docs/` folder (written in Chinese)
+<<<<<<< HEAD
 - Key guides: `folder-memory.md`, `zoom-feature-ready.md`, `split-mode-guide.md`, `encoding-support.md`
+=======
+- Key guides: `folder-memory.md`, `zoom-feature-ready.md`, `split-mode-guide.md`, `encoding-support.md`, `plantuml-guide.md`
+>>>>>>> xinxun/main
 - Changelog maintained in `CHANGELOG.md` with emoji-prefixed sections

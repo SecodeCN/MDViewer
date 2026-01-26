@@ -7,6 +7,7 @@ class MDViewerStandalone {
         this.isModified = false;
         this.viewMode = 'split'; // 默认分栏模式
         this.fileHandles = new Map();
+<<<<<<< HEAD
         this.manualEncoding = 'utf-8';
         this.splitRatio = 50; // 分栏比例（百分比）
         this.isResizing = false;
@@ -17,6 +18,12 @@ class MDViewerStandalone {
         this.GBK_SCORE_MULTIPLIER = 1.2;     // GBK 评分倍数阈值
         
         // IndexedDB 配置
+=======
+        this.manualEncoding = 'auto';
+        this.splitRatio = 50; // 分栏比例（百分比）
+        this.isResizing = false;
+        this.basePath = ''; // 用户设置的文件夹完整路径前缀
+>>>>>>> xinxun/main
         this.dbName = 'md-viewer-db';
         this.storeName = 'folders';
         this.recentFoldersStore = 'recentFolders';
@@ -665,11 +672,14 @@ class MDViewerStandalone {
         this.splitResizer = document.getElementById('splitResizer');
         this.currentFileName = document.getElementById('currentFile');
         
+<<<<<<< HEAD
         // 确保编码选择器同步到默认值
         if (this.encodingSelect) {
             this.encodingSelect.value = this.manualEncoding;
         }
         
+=======
+>>>>>>> xinxun/main
         // 目录面板元素
         this.tocPanel = document.getElementById('tocPanel');
         this.tocContent = document.getElementById('tocContent');
@@ -695,20 +705,38 @@ class MDViewerStandalone {
                 theme: isDark ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
+<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
+=======
+                    useMaxWidth: true,
+>>>>>>> xinxun/main
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
+<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
                     useMaxWidth: false   // 使用自然大小
+=======
+                    useMaxWidth: true,
+                    wrap: true
+                },
+                gantt: {
+                    useMaxWidth: true
+>>>>>>> xinxun/main
                 }
             });
         }
         
+<<<<<<< HEAD
+=======
+        // PlantUML 服务器配置
+        this.plantumlServer = 'https://www.plantuml.com/plantuml';
+        
+>>>>>>> xinxun/main
         // 配置 marked
         marked.setOptions({
             gfm: true,
@@ -727,6 +755,7 @@ class MDViewerStandalone {
             // 匹配 ID[...] 或 ID["..."] 格式的节点定义
             let result = code;
             
+<<<<<<< HEAD
             // Mermaid 保留关键字，不进行节点标签处理
             const MERMAID_KEYWORDS = ['fill', 'stroke', 'color', 'class', 'click'];
             
@@ -820,18 +849,195 @@ class MDViewerStandalone {
                 
                 return match;
             });
+=======
+            // 0. 检测是否为时序图
+            const isSequenceDiagram = /^\s*sequenceDiagram\s*$/m.test(result);
+            
+            // 0.1 处理时序图中的 Mermaid 保留字作为 participant 名称
+            // 保留字列表: break, end, loop, alt, else, opt, par, critical, section 等
+            if (isSequenceDiagram) {
+                const reservedWords = ['break', 'end', 'loop', 'alt', 'else', 'opt', 'par', 'and', 'critical', 'option', 'section', 'rect', 'note', 'activate', 'deactivate'];
+                
+                // 处理 participant 声明中的保留字
+                result = result.replace(
+                    /^(\s*)(participant|actor)\s+(\w+)\s+as\s+(\w+)$/gmi,
+                    (match, indent, keyword, id, alias) => {
+                        // 如果 ID 是保留字，需要给 alias 加引号
+                        if (reservedWords.includes(id.toLowerCase())) {
+                            return `${indent}${keyword} ${id}_ as ${alias}`;
+                        }
+                        return match;
+                    }
+                );
+                
+                // 同时修复消息中引用这些 ID 的地方
+                reservedWords.forEach(word => {
+                    const regex = new RegExp(`(--?>>?|--?[x)]|--?>)(${word})(:)`, 'gi');
+                    result = result.replace(regex, `$1${word}_$3`);
+                    const regex2 = new RegExp(`^(\\s*)(${word})(--?>>?|--?[x)]|--?>)`, 'gmi');
+                    result = result.replace(regex2, `$1${word}_$3`);
+                });
+            }
+            
+            // 0.2 处理时序图消息中的特殊字符（括号等）
+            if (isSequenceDiagram) {
+                // 匹配时序图消息: Actor->>Actor: Message 或 Actor-->>Actor: Message
+                // 支持的箭头: -> --> ->> -->> -x --x -) --)
+                result = result.replace(
+                    /^(\s*)(\w+)(--?>>?|--?[x)]|--?>)(\w+):\s*(.+)$/gm,
+                    (match, indent, from, arrow, to, message) => {
+                        // 如果消息已经用引号包裹，保持不变
+                        if (message.startsWith('"') && message.endsWith('"')) {
+                            return match;
+                        }
+                        // 如果消息包含括号或其他特殊字符，用引号包裹
+                        const hasSpecialChars = /[(){}[\]<>]/.test(message);
+                        if (hasSpecialChars) {
+                            // 转义内部的双引号
+                            const escapedMessage = message.replace(/"/g, "'");
+                            return `${indent}${from}${arrow}${to}: "${escapedMessage}"`;
+                        }
+                        return match;
+                    }
+                );
+                
+                // 处理 Note 语句中的特殊字符
+                result = result.replace(
+                    /^(\s*)(Note\s+(?:left|right|over)\s+[\w,\s]+):\s*(.+)$/gmi,
+                    (match, indent, notePrefix, message) => {
+                        if (message.startsWith('"') && message.endsWith('"')) {
+                            return match;
+                        }
+                        const hasSpecialChars = /[(){}[\]<>&;#]/.test(message);
+                        if (hasSpecialChars) {
+                            const escapedMessage = message.replace(/"/g, '\\"');
+                            return `${indent}${notePrefix}: "${escapedMessage}"`;
+                        }
+                        return match;
+                    }
+                );
+            }
+            
+            // 1. 处理 subgraph 标签 - 仅用于流程图
+            if (!isSequenceDiagram) {
+                result = result.replace(/subgraph\s+(\w+)\[([^\]]+)\]/g, (match, id, label) => {
+                    // 如果标签已经用引号包裹，保持不变
+                    if (label.startsWith('"') && label.endsWith('"')) {
+                        return match;
+                    }
+                    // 将换行转换为 <br>，并用引号包裹
+                    const fixedLabel = label.trim().replace(/\n/g, '<br>');
+                    return `subgraph ${id}["${fixedLabel}"]`;
+                });
+            }
+            
+            // 2. 处理普通节点 ID[Label] - 仅用于流程图
+            if (!isSequenceDiagram) {
+                result = result.replace(/(\w+)\[((?:[^\[\]]|\n)+)\]/g, (match, id, label) => {
+                    // 跳过已经是 subgraph 的
+                    if (result.includes(`subgraph ${id}[`)) {
+                        // 检查这个匹配是否就是 subgraph 的一部分
+                        const beforeMatch = result.substring(0, result.indexOf(match));
+                        if (beforeMatch.endsWith('subgraph ') || beforeMatch.match(/subgraph\s+$/)) {
+                            return match;
+                        }
+                    }
+                    
+                    // 如果标签已经用引号包裹，保持不变
+                    if (label.startsWith('"') && label.endsWith('"')) {
+                        return match;
+                    }
+                    
+                    // 如果包含换行或特殊字符，需要处理
+                    const hasNewline = label.includes('\n');
+                    const hasSpecialChars = /[()/:&]/.test(label);
+                    
+                    if (hasNewline || hasSpecialChars) {
+                        // 将换行转换为 <br>，并用引号包裹
+                        let fixedLabel = label.trim().replace(/\n\s*/g, '<br>');
+                        // 转义内部的双引号
+                        fixedLabel = fixedLabel.replace(/"/g, '#quot;');
+                        return `${id}["${fixedLabel}"]`;
+                    }
+                    
+                    return match;
+                });
+            }
+            
+            // 3. 处理圆角节点 ID(Label) - 仅用于流程图，跳过时序图
+            if (!isSequenceDiagram) {
+                result = result.replace(/(\w+)\(((?:[^()]|\n)+)\)/g, (match, id, label) => {
+                    // 跳过 classDef 和其他关键字
+                    if (['fill', 'stroke', 'color', 'class', 'click'].includes(id)) {
+                        return match;
+                    }
+                    
+                    const hasNewline = label.includes('\n');
+                    const hasSpecialChars = /[/:&\[\]]/.test(label);
+                    
+                    if (hasNewline || hasSpecialChars) {
+                        let fixedLabel = label.trim().replace(/\n\s*/g, '<br>');
+                        fixedLabel = fixedLabel.replace(/"/g, '#quot;');
+                        return `${id}("${fixedLabel}")`;
+                    }
+                    
+                    return match;
+                });
+            }
+>>>>>>> xinxun/main
             
             return result;
         };
         
+<<<<<<< HEAD
         // 自定义代码块渲染器，处理 Mermaid
+=======
+        // PlantUML 编码函数
+        this.encodePlantUML = (code) => {
+            // 确保代码包含 @startuml 和 @enduml
+            let fullCode = code.trim();
+            if (!fullCode.startsWith('@start')) {
+                fullCode = '@startuml\n' + fullCode + '\n@enduml';
+            }
+            
+            // 使用 plantuml-encoder 库进行编码
+            if (typeof plantumlEncoder !== 'undefined') {
+                return plantumlEncoder.encode(fullCode);
+            }
+            
+            // 后备方案：如果编码库未加载，返回原始代码
+            console.warn('[PlantUML] plantuml-encoder 库未加载');
+            return null;
+        };
+        
+        // 自定义代码块渲染器，处理 Mermaid 和 PlantUML
+>>>>>>> xinxun/main
         renderer.code = (code, language) => {
             // 如果是 mermaid 代码块，预处理后返回 mermaid div
             if (language === 'mermaid') {
                 const processedCode = this.preprocessMermaid(code);
+<<<<<<< HEAD
                 return `<div class="mermaid">${processedCode}</div>`;
             }
             
+=======
+                console.log('[Mermaid] Original code:', code.substring(0, 200));
+                console.log('[Mermaid] Processed code:', processedCode.substring(0, 200));
+                return `<div class="mermaid">${processedCode}</div>`;
+            }
+            
+            // 如果是 PlantUML 代码块，返回带有占位符的容器
+            if (language === 'plantuml' || language === 'puml') {
+                const uniqueId = `plantuml-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                // 存储原始代码用于后续渲染
+                return `<div class="plantuml" id="${uniqueId}" data-plantuml-code="${encodeURIComponent(code)}">
+                    <div class="plantuml-loading">
+                        <i class="fas fa-spinner fa-spin"></i> 正在生成 PlantUML 图表...
+                    </div>
+                </div>`;
+            }
+            
+>>>>>>> xinxun/main
             // 其他代码块正常处理
             let highlighted;
             if (language && hljs.getLanguage(language)) {
@@ -902,6 +1108,25 @@ class MDViewerStandalone {
             this.openFolder();
         });
         
+<<<<<<< HEAD
+=======
+        // 查看功能演示按钮（欢迎页面）
+        const showDemoBtn = document.getElementById('showDemoBtn');
+        if (showDemoBtn) {
+            showDemoBtn.addEventListener('click', () => {
+                this.showFeaturesDemo();
+            });
+        }
+        
+        // 查看功能演示按钮（侧边栏）
+        const showDemoBtn2 = document.getElementById('showDemoBtn2');
+        if (showDemoBtn2) {
+            showDemoBtn2.addEventListener('click', () => {
+                this.showFeaturesDemo();
+            });
+        }
+        
+>>>>>>> xinxun/main
         // 刷新文件列表
         document.getElementById('refreshBtn').addEventListener('click', () => {
             if (this.directoryHandle) {
@@ -1048,6 +1273,12 @@ class MDViewerStandalone {
             globalSearchClose.addEventListener('click', () => this.closeGlobalSearch());
         }
         
+<<<<<<< HEAD
+=======
+        // 导出功能
+        this.initExportFeature();
+        
+>>>>>>> xinxun/main
         // 目录切换
         if (this.tocToggle) {
             this.tocToggle.addEventListener('click', () => {
@@ -1112,6 +1343,16 @@ class MDViewerStandalone {
                 this.stopResize();
             }
         });
+<<<<<<< HEAD
+=======
+        
+        // 预览区域双击进入编辑模式
+        if (this.preview) {
+            this.preview.addEventListener('dblclick', (e) => {
+                this.handlePreviewDoubleClick(e);
+            });
+        }
+>>>>>>> xinxun/main
     }
     
     // 开始调整分栏大小
@@ -1150,6 +1391,116 @@ class MDViewerStandalone {
         localStorage.setItem('md-viewer-split-ratio', this.splitRatio);
     }
     
+<<<<<<< HEAD
+=======
+    // 处理预览区域双击事件 - 进入编辑模式
+    handlePreviewDoubleClick(e) {
+        // 如果没有打开文件，不处理
+        if (!this.currentFileHandle) return;
+        
+        // 如果已经是分屏模式，不处理（避免重复）
+        if (this.viewMode === 'split') return;
+        
+        // 排除特殊元素的双击（如 Mermaid 图表缩放）
+        const target = e.target;
+        if (target.closest('.mermaid') || target.closest('.plantuml') || 
+            target.closest('a') || target.closest('code') || target.closest('pre')) {
+            return;
+        }
+        
+        // 获取双击位置对应的文本内容
+        const clickedElement = this.findClickedParagraph(target);
+        const searchText = clickedElement ? this.getElementSearchText(clickedElement) : null;
+        
+        // 切换到分屏模式
+        this.setViewMode('split');
+        
+        // 如果找到了对应的文本，尝试定位到编辑器中
+        if (searchText) {
+            setTimeout(() => {
+                this.locateTextInEditor(searchText);
+            }, 100);
+        }
+        
+        this.showToast('已进入编辑模式', 'info');
+    }
+    
+    // 找到双击的段落元素
+    findClickedParagraph(element) {
+        // 向上查找最近的块级元素
+        const blockElements = ['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'TD', 'TH', 'DIV'];
+        let current = element;
+        
+        while (current && current !== this.preview) {
+            if (blockElements.includes(current.tagName)) {
+                return current;
+            }
+            current = current.parentElement;
+        }
+        
+        return element;
+    }
+    
+    // 获取元素的搜索文本
+    getElementSearchText(element) {
+        // 获取纯文本内容（去除子元素的影响）
+        let text = element.textContent || '';
+        
+        // 清理文本：移除多余空白
+        text = text.trim().replace(/\s+/g, ' ');
+        
+        // 如果文本太短或太长，返回null
+        if (text.length < 3 || text.length > 200) {
+            return null;
+        }
+        
+        // 取前50个字符作为搜索关键字
+        return text.substring(0, 50);
+    }
+    
+    // 在编辑器中定位文本
+    locateTextInEditor(searchText) {
+        if (!this.editor || !searchText) return;
+        
+        const content = this.editor.value;
+        
+        // 尝试查找完整匹配
+        let index = content.indexOf(searchText);
+        
+        // 如果没找到，尝试查找前20个字符
+        if (index === -1 && searchText.length > 20) {
+            index = content.indexOf(searchText.substring(0, 20));
+        }
+        
+        // 如果还没找到，尝试用第一个单词
+        if (index === -1) {
+            const firstWord = searchText.split(/\s+/)[0];
+            if (firstWord && firstWord.length >= 3) {
+                index = content.indexOf(firstWord);
+            }
+        }
+        
+        if (index !== -1) {
+            // 计算行号
+            const lineNumber = content.substring(0, index).split('\n').length;
+            
+            // 定位到该行
+            this.editor.focus();
+            
+            // 设置光标位置
+            this.editor.setSelectionRange(index, index + searchText.length);
+            
+            // 滚动到可见位置
+            const lines = content.substring(0, index).split('\n');
+            const lineHeight = parseInt(getComputedStyle(this.editor).lineHeight) || 20;
+            const scrollTop = (lines.length - 1) * lineHeight - this.editor.clientHeight / 3;
+            this.editor.scrollTop = Math.max(0, scrollTop);
+            
+            console.log(`[Edit] 定位到第 ${lineNumber} 行: "${searchText.substring(0, 30)}..."`);
+        }
+    }
+
+>>>>>>> xinxun/main
     // 打开文件夹
     async openFolder() {
         try {
@@ -1357,6 +1708,7 @@ class MDViewerStandalone {
             return 'utf-16be';
         }
         
+<<<<<<< HEAD
         // 使用更多字节进行检测以提高准确性
         const sampleSize = Math.min(4000, buffer.byteLength);
         const testArr = new Uint8Array(buffer.slice(0, sampleSize));
@@ -1477,6 +1829,121 @@ class MDViewerStandalone {
         }
         
         return score;
+=======
+        // 分析更多内容进行编码检测
+        const sampleSize = Math.min(4096, buffer.byteLength);
+        const testArr = new Uint8Array(buffer.slice(0, sampleSize));
+        
+        // 使用更严格的 UTF-8 验证
+        if (this.isValidUtf8(testArr)) {
+            return 'utf-8';
+        }
+        
+        // 检测是否可能是 GBK/GB2312
+        if (this.looksLikeGbk(testArr)) {
+            return 'gbk';
+        }
+        
+        // 默认 UTF-8
+        return 'utf-8';
+    }
+    
+    /**
+     * 严格验证是否为有效的 UTF-8 编码
+     * UTF-8 编码规则：
+     * - 0xxxxxxx: ASCII (0-127)
+     * - 110xxxxx 10xxxxxx: 2字节 (128-2047)
+     * - 1110xxxx 10xxxxxx 10xxxxxx: 3字节 (2048-65535)
+     * - 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx: 4字节 (65536+)
+     */
+    isValidUtf8(arr) {
+        let i = 0;
+        let hasMultiByte = false;
+        
+        while (i < arr.length) {
+            const byte = arr[i];
+            
+            if (byte <= 0x7F) {
+                // ASCII
+                i++;
+            } else if ((byte & 0xE0) === 0xC0) {
+                // 2字节序列: 110xxxxx
+                if (i + 1 >= arr.length) return false;
+                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
+                // 检查过长编码 (overlong encoding)
+                if ((byte & 0x1E) === 0) return false;
+                hasMultiByte = true;
+                i += 2;
+            } else if ((byte & 0xF0) === 0xE0) {
+                // 3字节序列: 1110xxxx
+                if (i + 2 >= arr.length) return false;
+                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
+                if ((arr[i + 2] & 0xC0) !== 0x80) return false;
+                // 检查过长编码
+                if (byte === 0xE0 && (arr[i + 1] & 0x20) === 0) return false;
+                hasMultiByte = true;
+                i += 3;
+            } else if ((byte & 0xF8) === 0xF0) {
+                // 4字节序列: 11110xxx
+                if (i + 3 >= arr.length) return false;
+                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
+                if ((arr[i + 2] & 0xC0) !== 0x80) return false;
+                if ((arr[i + 3] & 0xC0) !== 0x80) return false;
+                // 检查过长编码
+                if (byte === 0xF0 && (arr[i + 1] & 0x30) === 0) return false;
+                hasMultiByte = true;
+                i += 4;
+            } else {
+                // 非法的 UTF-8 起始字节
+                return false;
+            }
+        }
+        
+        // 如果只有 ASCII，也是有效的 UTF-8
+        return true;
+    }
+    
+    /**
+     * 启发式检测是否像 GBK 编码
+     * GBK 双字节字符范围：
+     * - 第一字节: 0x81-0xFE
+     * - 第二字节: 0x40-0xFE (排除 0x7F)
+     */
+    looksLikeGbk(arr) {
+        let gbkPairs = 0;
+        let invalidPairs = 0;
+        let i = 0;
+        
+        while (i < arr.length) {
+            const byte = arr[i];
+            
+            if (byte <= 0x7F) {
+                // ASCII
+                i++;
+            } else if (byte >= 0x81 && byte <= 0xFE) {
+                // 可能是 GBK 双字节的第一个字节
+                if (i + 1 < arr.length) {
+                    const nextByte = arr[i + 1];
+                    if ((nextByte >= 0x40 && nextByte <= 0x7E) || 
+                        (nextByte >= 0x80 && nextByte <= 0xFE)) {
+                        gbkPairs++;
+                        i += 2;
+                    } else {
+                        invalidPairs++;
+                        i++;
+                    }
+                } else {
+                    i++;
+                }
+            } else {
+                invalidPairs++;
+                i++;
+            }
+        }
+        
+        // 如果有 GBK 字符对且没有太多无效对，则认为是 GBK
+        return gbkPairs > 0 && invalidPairs <= gbkPairs * 0.1;
+>>>>>>> xinxun/main
     }
     
     // 解码文件内容
@@ -1691,6 +2158,12 @@ class MDViewerStandalone {
             console.warn('[Preview] Mermaid 未定义！');
         }
         
+<<<<<<< HEAD
+=======
+        // 渲染 PlantUML 图表
+        this.renderPlantUML();
+        
+>>>>>>> xinxun/main
         // 渲染数学公式
         if (typeof renderMathInElement !== 'undefined') {
             renderMathInElement(this.preview, {
@@ -2182,6 +2655,836 @@ class MDViewerStandalone {
         localStorage.setItem('md-viewer-toc-visible', 'false');
     }
     
+<<<<<<< HEAD
+=======
+    // 渲染 PlantUML 图表
+    renderPlantUML() {
+        const plantumlElements = this.preview.querySelectorAll('.plantuml');
+        console.log(`[Preview] 找到 ${plantumlElements.length} 个 PlantUML 元素待渲染`);
+        
+        if (plantumlElements.length === 0) return;
+        
+        plantumlElements.forEach((element) => {
+            const code = decodeURIComponent(element.getAttribute('data-plantuml-code'));
+            if (!code) return;
+            
+            // 编码 PlantUML 代码
+            const encoded = this.encodePlantUML(code);
+            if (!encoded) {
+                element.innerHTML = `
+                    <div class="plantuml-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>PlantUML 编码器未加载</span>
+                    </div>`;
+                return;
+            }
+            
+            // 使用深色/浅色主题
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            const format = 'svg'; // 使用 SVG 格式以获得更好的渲染效果
+            
+            // 构建 PlantUML 服务器 URL
+            const imgUrl = `${this.plantumlServer}/${format}/${encoded}`;
+            
+            console.log(`[PlantUML] 渲染图表: ${element.id}`);
+            
+            // 创建图片元素
+            const img = new Image();
+            img.onload = () => {
+                element.innerHTML = '';
+                element.appendChild(img);
+                // 绑定缩放事件
+                this.attachDiagramZoomHandlers();
+            };
+            img.onerror = () => {
+                element.innerHTML = `
+                    <div class="plantuml-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>PlantUML 图表渲染失败</span>
+                        <details>
+                            <summary>查看原始代码</summary>
+                            <pre><code>${this.escapeHtml(code)}</code></pre>
+                        </details>
+                    </div>`;
+            };
+            img.src = imgUrl;
+            img.alt = 'PlantUML Diagram';
+            img.className = 'plantuml-diagram';
+        });
+    }
+    
+    // HTML 转义辅助函数
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * 显示功能演示文档
+     * 用于在用户首次使用时展示软件的全部能力
+     */
+    showFeaturesDemo() {
+        // 内置的功能演示文档
+        const demoContent = `# 🎨 MD Viewer 功能演示
+
+欢迎使用 MD Viewer！这是一个功能强大的 Markdown 阅读器，支持多种图表和格式。
+
+---
+
+## 📊 Mermaid 图表
+
+### 流程图
+
+\`\`\`mermaid
+graph TD
+    A[开始使用 MD Viewer] --> B{选择文件夹}
+    B --> C[浏览文件列表]
+    C --> D[选择 Markdown 文件]
+    D --> E[实时预览]
+    E --> F{需要编辑?}
+    F -->|是| G[分栏编辑模式]
+    F -->|否| H[继续阅读]
+    G --> I[保存文件]
+    I --> E
+\`\`\`
+
+### 时序图
+
+\`\`\`mermaid
+sequenceDiagram
+    participant 用户
+    participant MD Viewer
+    participant 文件系统
+    
+    用户->>MD Viewer: 打开文件夹
+    MD Viewer->>文件系统: 请求读取权限
+    文件系统-->>MD Viewer: 授权成功
+    MD Viewer->>文件系统: 读取 .md 文件列表
+    文件系统-->>MD Viewer: 返回文件列表
+    MD Viewer-->>用户: 显示文件树
+    用户->>MD Viewer: 点击文件
+    MD Viewer->>文件系统: 读取文件内容
+    文件系统-->>MD Viewer: 返回内容
+    MD Viewer-->>用户: 渲染预览
+\`\`\`
+
+### 饼图
+
+\`\`\`mermaid
+pie title MD Viewer 支持的功能
+    "Markdown 语法" : 30
+    "代码高亮" : 20
+    "Mermaid 图表" : 20
+    "PlantUML 图表" : 15
+    "数学公式" : 15
+\`\`\`
+
+### 状态图
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> 浅色主题
+    浅色主题 --> 深色主题: 点击切换
+    深色主题 --> 浅色主题: 点击切换
+    浅色主题 --> [*]
+    深色主题 --> [*]
+\`\`\`
+
+---
+
+## 🏗️ PlantUML 图表
+
+PlantUML 提供更专业的 UML 图表支持。
+
+### 时序图
+
+\`\`\`plantuml
+@startuml
+skinparam backgroundColor #FEFEFE
+
+actor 用户 as U
+participant "前端" as F
+participant "后端" as B
+database "数据库" as D
+
+U -> F: 请求数据
+activate F
+F -> B: API 调用
+activate B
+B -> D: 查询
+activate D
+D --> B: 返回结果
+deactivate D
+B --> F: 响应数据
+deactivate B
+F --> U: 显示结果
+deactivate F
+@enduml
+\`\`\`
+
+### 类图
+
+\`\`\`plantuml
+@startuml
+class MDViewer {
+    - currentFile: String
+    - isModified: Boolean
+    + loadFile(): void
+    + saveFile(): void
+    + updatePreview(): void
+}
+
+class Editor {
+    - content: String
+    + getValue(): String
+    + setValue(): void
+}
+
+class Preview {
+    + render(): void
+    + renderMermaid(): void
+    + renderPlantUML(): void
+}
+
+MDViewer *-- Editor
+MDViewer *-- Preview
+@enduml
+\`\`\`
+
+### 思维导图
+
+\`\`\`plantuml
+@startmindmap
+* MD Viewer
+** 📁 文件管理
+*** 打开文件夹
+*** 最近打开
+*** 文件搜索
+** ✏️ 编辑功能
+*** 实时预览
+*** 分栏模式
+** 🎨 渲染支持
+*** Mermaid
+*** PlantUML
+*** 数学公式
+** 🌙 主题
+*** 浅色
+*** 深色
+@endmindmap
+\`\`\`
+
+### 活动图
+
+\`\`\`plantuml
+@startuml
+start
+:打开 MD Viewer;
+if (有上次打开的文件夹?) then (是)
+    :自动恢复;
+else (否)
+    :显示欢迎页面;
+endif
+:选择文件;
+:渲染内容;
+fork
+    :渲染 Markdown;
+fork again
+    :渲染 Mermaid;
+fork again
+    :渲染 PlantUML;
+end fork
+:显示预览;
+stop
+@enduml
+\`\`\`
+
+---
+
+## 💻 代码高亮
+
+支持 180+ 种编程语言的语法高亮。
+
+### JavaScript
+
+\`\`\`javascript
+// 异步函数示例
+async function fetchData(url) {
+    try {
+        const response = await fetch(url);
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+\`\`\`
+
+### Python
+
+\`\`\`python
+def fibonacci(n):
+    """生成斐波那契数列"""
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+# 使用生成器
+for num in fibonacci(10):
+    print(num)
+\`\`\`
+
+---
+
+## 📐 数学公式
+
+使用 KaTeX 渲染数学公式。
+
+### 行内公式
+
+著名的质能方程 $E = mc^2$，以及勾股定理 $a^2 + b^2 = c^2$。
+
+### 块级公式
+
+$$
+\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
+$$
+
+$$
+\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}
+$$
+
+---
+
+## 📋 其他功能
+
+### 表格
+
+| 功能 | Mermaid | PlantUML |
+|------|:-------:|:--------:|
+| 流程图 | ✅ | ✅ |
+| 时序图 | ✅ | ✅ |
+| 类图 | ✅ | ✅ |
+| 思维导图 | ❌ | ✅ |
+| 甘特图 | ✅ | ✅ |
+| 离线使用 | ✅ | ❌ |
+
+### 任务列表
+
+- [x] 支持 Mermaid 图表
+- [x] 支持 PlantUML 图表
+- [x] 支持数学公式
+- [x] 深色/浅色主题切换
+- [x] 文件夹记忆功能
+- [ ] 导出为 PDF
+
+### 引用
+
+> 💡 **提示**: 双击任意图表可以放大查看！
+
+---
+
+**开始使用**: 点击左侧"打开文件夹"按钮，选择包含 Markdown 文件的文件夹即可开始！ 🚀
+`;
+
+        // 隐藏欢迎页面，显示预览
+        this.welcomePage.style.display = 'none';
+        this.previewContainer.style.display = 'flex';
+        this.editorContainer.style.display = 'none';
+        this.splitResizer.style.display = 'none';
+        
+        // 更新标题
+        this.currentFileEl.textContent = '📖 功能演示 (内置文档)';
+        
+        // 渲染演示内容
+        this.preview.innerHTML = marked.parse(demoContent);
+        
+        // 重新高亮代码块
+        this.preview.querySelectorAll('pre code:not(.mermaid)').forEach((block) => {
+            hljs.highlightElement(block);
+        });
+        
+        // 渲染 Mermaid 图表
+        if (typeof mermaid !== 'undefined') {
+            const mermaidElements = this.preview.querySelectorAll('.mermaid');
+            if (mermaidElements.length > 0) {
+                mermaidElements.forEach((element, index) => {
+                    element.id = `mermaid-demo-${Date.now()}-${index}`;
+                });
+                mermaid.run({ nodes: mermaidElements }).then(() => {
+                    setTimeout(() => {
+                        this.attachDiagramZoomHandlers();
+                    }, 100);
+                });
+            }
+        }
+        
+        // 渲染 PlantUML 图表
+        this.renderPlantUML();
+        
+        // 渲染数学公式
+        if (typeof renderMathInElement !== 'undefined') {
+            renderMathInElement(this.preview, {
+                delimiters: [
+                    {left: '$$', right: '$$', display: true},
+                    {left: '$', right: '$', display: false}
+                ],
+                throwOnError: false
+            });
+        }
+        
+        this.showToast('正在加载功能演示...', 'info');
+    }
+    
+    // ==================== 导出功能 ====================
+    
+    /**
+     * 初始化导出功能
+     */
+    initExportFeature() {
+        const exportBtn = document.getElementById('exportBtn');
+        const exportMenu = document.getElementById('exportMenu');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const exportWordBtn = document.getElementById('exportWordBtn');
+        const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+        
+        if (!exportBtn || !exportMenu) return;
+        
+        // 切换下拉菜单
+        exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportMenu.classList.toggle('show');
+        });
+        
+        // 点击其他地方关闭菜单
+        document.addEventListener('click', () => {
+            exportMenu.classList.remove('show');
+        });
+        
+        // 导出PDF
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', () => {
+                exportMenu.classList.remove('show');
+                this.exportToPdf();
+            });
+        }
+        
+        // 导出Word
+        if (exportWordBtn) {
+            exportWordBtn.addEventListener('click', () => {
+                exportMenu.classList.remove('show');
+                this.exportToWord();
+            });
+        }
+        
+        // 导出HTML
+        if (exportHtmlBtn) {
+            exportHtmlBtn.addEventListener('click', () => {
+                exportMenu.classList.remove('show');
+                this.exportToHtml();
+            });
+        }
+    }
+    
+    /**
+     * 获取当前文件名（不带扩展名）
+     */
+    getExportFileName() {
+        const currentFile = this.currentFileEl.textContent;
+        if (!currentFile || currentFile.includes('请打开') || currentFile.includes('功能演示')) {
+            return 'document';
+        }
+        // 提取文件名，去掉路径和扩展名
+        const fileName = currentFile.split('/').pop().split('\\').pop();
+        return fileName.replace(/\.(md|markdown)$/i, '') || 'document';
+    }
+    
+    /**
+     * 显示导出进度
+     */
+    showExportProgress(message) {
+        const overlay = document.createElement('div');
+        overlay.className = 'export-overlay';
+        overlay.id = 'exportOverlay';
+        overlay.innerHTML = `
+            <div class="export-progress">
+                <i class="fas fa-spinner"></i>
+                <p>${message}</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
+    
+    /**
+     * 隐藏导出进度
+     */
+    hideExportProgress() {
+        const overlay = document.getElementById('exportOverlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+    
+    /**
+     * 获取完整的导出样式
+     */
+    getExportStyles() {
+        return `
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+                font-size: 16px;
+                line-height: 1.6;
+                color: #24292e;
+                background: #fff;
+                padding: 40px;
+                max-width: 900px;
+                margin: 0 auto;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                margin-top: 24px;
+                margin-bottom: 16px;
+                font-weight: 600;
+                line-height: 1.25;
+            }
+            h1 { font-size: 2em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+            h2 { font-size: 1.5em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+            h3 { font-size: 1.25em; }
+            h4 { font-size: 1em; }
+            p { margin: 0 0 16px 0; }
+            a { color: #0366d6; text-decoration: none; }
+            strong { font-weight: 600; }
+            em { font-style: italic; }
+            code {
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+                font-size: 85%;
+                background-color: rgba(27,31,35,0.05);
+                padding: 0.2em 0.4em;
+                border-radius: 3px;
+            }
+            pre {
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+                font-size: 85%;
+                background-color: #f6f8fa;
+                border-radius: 6px;
+                padding: 16px;
+                overflow: auto;
+                line-height: 1.45;
+                margin: 0 0 16px 0;
+            }
+            pre code {
+                background: transparent;
+                padding: 0;
+                font-size: 100%;
+            }
+            blockquote {
+                margin: 0 0 16px 0;
+                padding: 0 1em;
+                color: #6a737d;
+                border-left: 0.25em solid #dfe2e5;
+            }
+            ul, ol {
+                margin: 0 0 16px 0;
+                padding-left: 2em;
+            }
+            li { margin: 0.25em 0; }
+            li + li { margin-top: 0.25em; }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 0 0 16px 0;
+            }
+            table th, table td {
+                border: 1px solid #dfe2e5;
+                padding: 6px 13px;
+            }
+            table th {
+                font-weight: 600;
+                background-color: #f6f8fa;
+            }
+            table tr:nth-child(2n) {
+                background-color: #f6f8fa;
+            }
+            hr {
+                height: 0.25em;
+                padding: 0;
+                margin: 24px 0;
+                background-color: #e1e4e8;
+                border: 0;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 16px auto;
+            }
+            svg {
+                max-width: 100%;
+                height: auto;
+            }
+            .mermaid, .plantuml {
+                text-align: center;
+                margin: 24px 0;
+                page-break-inside: avoid;
+            }
+            .mermaid svg, .plantuml img {
+                max-width: 100%;
+                height: auto;
+            }
+            .task-list-item {
+                list-style-type: none;
+            }
+            .task-list-item input {
+                margin-right: 0.5em;
+            }
+            @media print {
+                body { padding: 0; }
+                pre, code { white-space: pre-wrap; word-wrap: break-word; }
+                .mermaid, .plantuml { page-break-inside: avoid; }
+            }
+        `;
+    }
+    
+    /**
+     * 获取用于导出的HTML内容（包含处理后的图表）
+     */
+    getExportHtmlContent() {
+        // 克隆预览区内容
+        const content = this.preview.cloneNode(true);
+        
+        // 移除不需要导出的元素
+        content.querySelectorAll('.zoom-hint, .copy-btn, .plantuml-loading').forEach(el => el.remove());
+        
+        return content.innerHTML;
+    }
+    
+    /**
+     * 导出为PDF（使用浏览器打印功能，效果最好）
+     */
+    async exportToPdf() {
+        if (!this.preview.innerHTML || this.preview.innerHTML.trim() === '') {
+            this.showToast('没有可导出的内容', 'warning');
+            return;
+        }
+        
+        const fileName = this.getExportFileName();
+        
+        // 创建打印窗口
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            this.showToast('请允许弹出窗口以导出PDF', 'warning');
+            return;
+        }
+        
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>${fileName}</title>
+    <style>${this.getExportStyles()}</style>
+</head>
+<body>
+    ${this.getExportHtmlContent()}
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+                window.onafterprint = function() { window.close(); };
+            }, 500);
+        };
+    <\/script>
+</body>
+</html>`;
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        this.showToast('请在打印对话框中选择"另存为PDF"', 'info');
+    }
+    
+    /**
+     * 导出为Word
+     */
+    async exportToWord() {
+        if (!this.preview.innerHTML || this.preview.innerHTML.trim() === '') {
+            this.showToast('没有可导出的内容', 'warning');
+            return;
+        }
+        
+        const fileName = this.getExportFileName();
+        this.showExportProgress('正在生成 Word 文档...');
+        
+        try {
+            // 将SVG图表转换为图片数据
+            const content = this.preview.cloneNode(true);
+            
+            // 移除不需要的元素
+            content.querySelectorAll('.zoom-hint, .copy-btn, .plantuml-loading').forEach(el => el.remove());
+            
+            // 处理Mermaid SVG - 转换为内联样式
+            content.querySelectorAll('.mermaid svg').forEach(svg => {
+                svg.setAttribute('width', '100%');
+                svg.style.maxWidth = '100%';
+            });
+            
+            // 构建Word兼容的HTML文档
+            const htmlContent = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+      xmlns:w="urn:schemas-microsoft-com:office:word" 
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>${fileName}</title>
+    <!--[if gte mso 9]>
+    <xml>
+        <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+    </xml>
+    <![endif]-->
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body {
+            font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #000;
+        }
+        h1 { font-size: 22pt; font-weight: bold; margin: 24pt 0 12pt 0; border-bottom: 1pt solid #ccc; padding-bottom: 6pt; }
+        h2 { font-size: 18pt; font-weight: bold; margin: 20pt 0 10pt 0; border-bottom: 1pt solid #eee; padding-bottom: 4pt; }
+        h3 { font-size: 14pt; font-weight: bold; margin: 16pt 0 8pt 0; }
+        h4 { font-size: 12pt; font-weight: bold; margin: 14pt 0 6pt 0; }
+        p { margin: 0 0 12pt 0; }
+        code {
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 10pt;
+            background-color: #f5f5f5;
+            padding: 2pt 4pt;
+        }
+        pre {
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 10pt;
+            background-color: #f5f5f5;
+            padding: 12pt;
+            border: 1pt solid #ddd;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        pre code { background: none; padding: 0; }
+        blockquote {
+            margin: 12pt 0;
+            padding: 6pt 12pt;
+            border-left: 4pt solid #ddd;
+            color: #666;
+        }
+        table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+        th, td { border: 1pt solid #000; padding: 6pt 10pt; }
+        th { background-color: #f0f0f0; font-weight: bold; }
+        ul, ol { margin: 12pt 0; padding-left: 24pt; }
+        li { margin: 4pt 0; }
+        img { max-width: 100%; height: auto; }
+        a { color: #0066cc; }
+        hr { border: none; border-top: 1pt solid #ccc; margin: 18pt 0; }
+        .mermaid, .plantuml { text-align: center; margin: 18pt 0; }
+    </style>
+</head>
+<body>
+    ${content.innerHTML}
+</body>
+</html>`;
+            
+            // 创建Blob并下载
+            const blob = new Blob(['\ufeff' + htmlContent], { 
+                type: 'application/msword;charset=utf-8' 
+            });
+            
+            // 使用FileSaver或原生下载
+            if (typeof saveAs !== 'undefined') {
+                saveAs(blob, `${fileName}.doc`);
+            } else {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${fileName}.doc`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+            
+            this.hideExportProgress();
+            this.showToast(`已导出: ${fileName}.doc`, 'success');
+        } catch (error) {
+            this.hideExportProgress();
+            console.error('Word导出失败:', error);
+            this.showToast('Word导出失败: ' + error.message, 'error');
+        }
+    }
+    
+    /**
+     * 导出为HTML
+     */
+    async exportToHtml() {
+        if (!this.preview.innerHTML || this.preview.innerHTML.trim() === '') {
+            this.showToast('没有可导出的内容', 'warning');
+            return;
+        }
+        
+        const fileName = this.getExportFileName();
+        
+        try {
+            // 构建完整的独立HTML文档，内联所有样式
+            const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${fileName}</title>
+    <style>
+        ${this.getExportStyles()}
+        /* Mermaid图表容器 */
+        .mermaid { text-align: center; margin: 24px 0; }
+        .mermaid svg { max-width: 100%; height: auto; }
+        /* PlantUML图表容器 */
+        .plantuml { text-align: center; margin: 24px 0; }
+        .plantuml img { max-width: 100%; height: auto; }
+        /* 代码高亮基础样式 */
+        .hljs { display: block; overflow-x: auto; padding: 0.5em; background: #f6f8fa; }
+        .hljs-comment, .hljs-quote { color: #6a737d; }
+        .hljs-keyword, .hljs-selector-tag { color: #d73a49; }
+        .hljs-string, .hljs-attr { color: #032f62; }
+        .hljs-number, .hljs-literal { color: #005cc5; }
+        .hljs-function, .hljs-title { color: #6f42c1; }
+        .hljs-built_in, .hljs-builtin-name { color: #005cc5; }
+    </style>
+</head>
+<body>
+${this.getExportHtmlContent()}
+</body>
+</html>`;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            
+            if (typeof saveAs !== 'undefined') {
+                saveAs(blob, `${fileName}.html`);
+            } else {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${fileName}.html`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+            }
+            
+            this.showToast(`已导出: ${fileName}.html`, 'success');
+        } catch (error) {
+            console.error('HTML导出失败:', error);
+            this.showToast('HTML导出失败: ' + error.message, 'error');
+        }
+    }
+    
+>>>>>>> xinxun/main
     // 更新目录内容
     updateToc() {
         if (!this.tocContent) return;
@@ -2944,16 +4247,28 @@ class MDViewerStandalone {
                 theme: newTheme === 'dark' ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
+<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
+=======
+                    useMaxWidth: true,
+>>>>>>> xinxun/main
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
+<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
                     useMaxWidth: false   // 使用自然大小
+=======
+                    useMaxWidth: true,
+                    wrap: true
+                },
+                gantt: {
+                    useMaxWidth: true
+>>>>>>> xinxun/main
                 }
             });
             // 如果当前有打开的文件，重新渲染
@@ -3009,8 +4324,11 @@ class MDViewerStandalone {
         this.zoomOut = document.getElementById('zoomOut');
         this.zoomReset = document.getElementById('zoomReset');
         this.zoomLevel = document.getElementById('zoomLevel');
+<<<<<<< HEAD
         this.downloadSVG = document.getElementById('downloadSVG');
         this.downloadPNG = document.getElementById('downloadPNG');
+=======
+>>>>>>> xinxun/main
         
         // 检查元素是否存在
         if (!this.zoomModal) console.error('[Zoom] 错误: diagramZoomModal 元素未找到!');
@@ -3020,8 +4338,11 @@ class MDViewerStandalone {
         if (!this.zoomOut) console.error('[Zoom] 错误: zoomOut 元素未找到!');
         if (!this.zoomReset) console.error('[Zoom] 错误: zoomReset 元素未找到!');
         if (!this.zoomLevel) console.error('[Zoom] 错误: zoomLevel 元素未找到!');
+<<<<<<< HEAD
         if (!this.downloadSVG) console.error('[Zoom] 错误: downloadSVG 元素未找到!');
         if (!this.downloadPNG) console.error('[Zoom] 错误: downloadPNG 元素未找到!');
+=======
+>>>>>>> xinxun/main
         
         this.currentZoomScale = 1;
         this.currentDiagram = null;
@@ -3059,6 +4380,7 @@ class MDViewerStandalone {
             this.zoomReset.addEventListener('click', () => this.resetZoom());
         }
         
+<<<<<<< HEAD
         // 下载按钮
         if (this.downloadSVG) {
             this.downloadSVG.addEventListener('click', () => this.downloadDiagramAsSVG());
@@ -3067,6 +4389,8 @@ class MDViewerStandalone {
             this.downloadPNG.addEventListener('click', () => this.downloadDiagramAsPNG());
         }
         
+=======
+>>>>>>> xinxun/main
         // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             if (!this.zoomModal || !this.zoomModal.classList.contains('show')) return;
@@ -3233,7 +4557,11 @@ class MDViewerStandalone {
     
     // 调整缩放
     adjustZoom(delta) {
+<<<<<<< HEAD
         this.currentZoomScale = Math.max(0.5, Math.min(20, this.currentZoomScale + delta));
+=======
+        this.currentZoomScale = Math.max(0.5, Math.min(10, this.currentZoomScale + delta));
+>>>>>>> xinxun/main
         this.updateZoomTransform();
     }
     
@@ -3297,6 +4625,7 @@ class MDViewerStandalone {
         
         console.log(`[Zoom] ✅ 成功绑定 ${diagrams.length} 个图表的事件`);
     }
+<<<<<<< HEAD
     
     // 下载图表为 SVG
     downloadDiagramAsSVG() {
@@ -3463,6 +4792,8 @@ class MDViewerStandalone {
             this.showToast('PNG 下载失败', 'error');
         }
     }
+=======
+>>>>>>> xinxun/main
 }
 
 // 初始化应用
