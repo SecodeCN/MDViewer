@@ -47,7 +47,7 @@ function zoom(delta) {
         step = 0.5;  // 大于 200% 时步进 50%
     }
     
-    currentScale = Math.max(0.5, Math.min(20, currentScale + (delta > 0 ? step : -step)));
+    currentScale = Math.max(0.5, Math.min(5, currentScale + (delta > 0 ? step : -step)));
     updateTransform();
     
     console.log(`缩放: ${Math.round(oldScale * 100)}% → ${Math.round(currentScale * 100)}%`);
