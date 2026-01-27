@@ -7,8 +7,7 @@ class MDViewerStandalone {
         this.isModified = false;
         this.viewMode = 'split'; // 默认分栏模式
         this.fileHandles = new Map();
-<<<<<<< HEAD
-        this.manualEncoding = 'utf-8';
+        this.manualEncoding = 'auto';
         this.splitRatio = 50; // 分栏比例（百分比）
         this.isResizing = false;
         this.basePath = ''; // 用户设置的文件夹完整路径前缀
@@ -18,12 +17,6 @@ class MDViewerStandalone {
         this.GBK_SCORE_MULTIPLIER = 1.2;     // GBK 评分倍数阈值
         
         // IndexedDB 配置
-=======
-        this.manualEncoding = 'auto';
-        this.splitRatio = 50; // 分栏比例（百分比）
-        this.isResizing = false;
-        this.basePath = ''; // 用户设置的文件夹完整路径前缀
->>>>>>> xinxun/main
         this.dbName = 'md-viewer-db';
         this.storeName = 'folders';
         this.recentFoldersStore = 'recentFolders';
@@ -672,14 +665,11 @@ class MDViewerStandalone {
         this.splitResizer = document.getElementById('splitResizer');
         this.currentFileName = document.getElementById('currentFile');
         
-<<<<<<< HEAD
         // 确保编码选择器同步到默认值
         if (this.encodingSelect) {
             this.encodingSelect.value = this.manualEncoding;
         }
         
-=======
->>>>>>> xinxun/main
         // 目录面板元素
         this.tocPanel = document.getElementById('tocPanel');
         this.tocContent = document.getElementById('tocContent');
@@ -705,38 +695,23 @@ class MDViewerStandalone {
                 theme: isDark ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
-<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
-=======
-                    useMaxWidth: true,
->>>>>>> xinxun/main
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
-<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
                     useMaxWidth: false   // 使用自然大小
-=======
-                    useMaxWidth: true,
-                    wrap: true
-                },
-                gantt: {
-                    useMaxWidth: true
->>>>>>> xinxun/main
                 }
             });
         }
         
-<<<<<<< HEAD
-=======
         // PlantUML 服务器配置
         this.plantumlServer = 'https://www.plantuml.com/plantuml';
         
->>>>>>> xinxun/main
         // 配置 marked
         marked.setOptions({
             gfm: true,
@@ -755,101 +730,6 @@ class MDViewerStandalone {
             // 匹配 ID[...] 或 ID["..."] 格式的节点定义
             let result = code;
             
-<<<<<<< HEAD
-            // Mermaid 保留关键字，不进行节点标签处理
-            const MERMAID_KEYWORDS = ['fill', 'stroke', 'color', 'class', 'click'];
-            
-            // 0. 移除可能导致语法错误的零宽字符和特殊空格
-            result = result.replace(/[\u200B-\u200D\uFEFF]/g, ''); // 零宽字符
-            result = result.replace(/\u00A0/g, ' '); // 不间断空格转为普通空格
-            
-            // 1. 处理 HTML 标签字符 - 转换 < 和 > 为 Mermaid 安全格式
-            // 注意: Mermaid 泛型应使用 ~ 语法 (如 List~T~)，而不是 <T>
-            // 只在节点标签内转换，避免影响其他 Mermaid 语法
-            result = result.replace(/(\w+)\[([^\]]{0,500}?)<([^>]{1,50})>([^\]]{0,500}?)\]/g, (match, id, before, content, after) => {
-                // 跳过 <br> 标签
-                if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
-                    return match;
-                }
-                // 替换 HTML 标签
-                return `${id}[${before}&lt;${content}&gt;${after}]`;
-            });
-            
-            // 同样处理圆括号节点中的 HTML 标签
-            result = result.replace(/(\w+)\(([^)]{0,500}?)<([^>]{1,50})>([^)]{0,500}?)\)/g, (match, id, before, content, after) => {
-                if (MERMAID_KEYWORDS.includes(id)) {
-                    return match;
-                }
-                // 跳过 <br> 标签
-                if (content.toLowerCase() === 'br' || content.toLowerCase() === '/br') {
-                    return match;
-                }
-                // 替换 HTML 标签
-                return `${id}(${before}&lt;${content}&gt;${after})`;
-            });
-            
-            // 2. 处理 subgraph 标签 - subgraph ID[Label] 或 subgraph ID["Label"]
-            result = result.replace(/subgraph\s+(\w+)\[([^\]]+)\]/g, (match, id, label) => {
-                // 如果标签已经用引号包裹，保持不变
-                if (label.startsWith('"') && label.endsWith('"')) {
-                    return match;
-                }
-                // 将换行转换为 <br>，并用引号包裹
-                const fixedLabel = label.trim().replace(/\n/g, '<br>');
-                return `subgraph ${id}["${fixedLabel}"]`;
-            });
-            
-            // 3. 处理普通节点 ID[Label] - 多行标签
-            // 使用更宽松的匹配，处理跨行的情况
-            result = result.replace(/(\w+)\[((?:[^\[\]]|\n)+)\]/g, (match, id, label) => {
-                // 跳过已经是 subgraph 的
-                if (result.includes(`subgraph ${id}[`)) {
-                    // 检查这个匹配是否就是 subgraph 的一部分
-                    const beforeMatch = result.substring(0, result.indexOf(match));
-                    if (beforeMatch.endsWith('subgraph ') || beforeMatch.match(/subgraph\s+$/)) {
-                        return match;
-                    }
-                }
-                
-                // 如果标签已经用引号包裹，保持不变
-                if (label.startsWith('"') && label.endsWith('"')) {
-                    return match;
-                }
-                
-                // 如果包含换行或特殊字符，需要处理
-                const hasNewline = label.includes('\n');
-                const hasSpecialChars = /[()/:&]/.test(label);
-                
-                if (hasNewline || hasSpecialChars) {
-                    // 将换行转换为 <br>，并用引号包裹
-                    let fixedLabel = label.trim().replace(/\n\s*/g, '<br>');
-                    // 转义内部的双引号
-                    fixedLabel = fixedLabel.replace(/"/g, '#quot;');
-                    return `${id}["${fixedLabel}"]`;
-                }
-                
-                return match;
-            });
-            
-            // 4. 处理圆角节点 ID(Label)
-            result = result.replace(/(\w+)\(((?:[^()]|\n)+)\)/g, (match, id, label) => {
-                // 跳过 Mermaid 关键字
-                if (MERMAID_KEYWORDS.includes(id)) {
-                    return match;
-                }
-                
-                const hasNewline = label.includes('\n');
-                const hasSpecialChars = /[/:&\[\]]/.test(label);
-                
-                if (hasNewline || hasSpecialChars) {
-                    let fixedLabel = label.trim().replace(/\n\s*/g, '<br>');
-                    fixedLabel = fixedLabel.replace(/"/g, '#quot;');
-                    return `${id}("${fixedLabel}")`;
-                }
-                
-                return match;
-            });
-=======
             // 0. 检测是否为时序图
             const isSequenceDiagram = /^\s*sequenceDiagram\s*$/m.test(result);
             
@@ -984,14 +864,10 @@ class MDViewerStandalone {
                     return match;
                 });
             }
->>>>>>> xinxun/main
             
             return result;
         };
         
-<<<<<<< HEAD
-        // 自定义代码块渲染器，处理 Mermaid
-=======
         // PlantUML 编码函数
         this.encodePlantUML = (code) => {
             // 确保代码包含 @startuml 和 @enduml
@@ -1011,16 +887,10 @@ class MDViewerStandalone {
         };
         
         // 自定义代码块渲染器，处理 Mermaid 和 PlantUML
->>>>>>> xinxun/main
         renderer.code = (code, language) => {
             // 如果是 mermaid 代码块，预处理后返回 mermaid div
             if (language === 'mermaid') {
                 const processedCode = this.preprocessMermaid(code);
-<<<<<<< HEAD
-                return `<div class="mermaid">${processedCode}</div>`;
-            }
-            
-=======
                 console.log('[Mermaid] Original code:', code.substring(0, 200));
                 console.log('[Mermaid] Processed code:', processedCode.substring(0, 200));
                 return `<div class="mermaid">${processedCode}</div>`;
@@ -1037,7 +907,6 @@ class MDViewerStandalone {
                 </div>`;
             }
             
->>>>>>> xinxun/main
             // 其他代码块正常处理
             let highlighted;
             if (language && hljs.getLanguage(language)) {
@@ -1108,8 +977,6 @@ class MDViewerStandalone {
             this.openFolder();
         });
         
-<<<<<<< HEAD
-=======
         // 查看功能演示按钮（欢迎页面）
         const showDemoBtn = document.getElementById('showDemoBtn');
         if (showDemoBtn) {
@@ -1126,7 +993,6 @@ class MDViewerStandalone {
             });
         }
         
->>>>>>> xinxun/main
         // 刷新文件列表
         document.getElementById('refreshBtn').addEventListener('click', () => {
             if (this.directoryHandle) {
@@ -1273,12 +1139,10 @@ class MDViewerStandalone {
             globalSearchClose.addEventListener('click', () => this.closeGlobalSearch());
         }
         
-<<<<<<< HEAD
-=======
+        
         // 导出功能
         this.initExportFeature();
         
->>>>>>> xinxun/main
         // 目录切换
         if (this.tocToggle) {
             this.tocToggle.addEventListener('click', () => {
@@ -1343,8 +1207,6 @@ class MDViewerStandalone {
                 this.stopResize();
             }
         });
-<<<<<<< HEAD
-=======
         
         // 预览区域双击进入编辑模式
         if (this.preview) {
@@ -1352,7 +1214,6 @@ class MDViewerStandalone {
                 this.handlePreviewDoubleClick(e);
             });
         }
->>>>>>> xinxun/main
     }
     
     // 开始调整分栏大小
@@ -1391,8 +1252,6 @@ class MDViewerStandalone {
         localStorage.setItem('md-viewer-split-ratio', this.splitRatio);
     }
     
-<<<<<<< HEAD
-=======
     // 处理预览区域双击事件 - 进入编辑模式
     handlePreviewDoubleClick(e) {
         // 如果没有打开文件，不处理
@@ -1500,7 +1359,6 @@ class MDViewerStandalone {
         }
     }
 
->>>>>>> xinxun/main
     // 打开文件夹
     async openFolder() {
         try {
@@ -1708,7 +1566,6 @@ class MDViewerStandalone {
             return 'utf-16be';
         }
         
-<<<<<<< HEAD
         // 使用更多字节进行检测以提高准确性
         const sampleSize = Math.min(4000, buffer.byteLength);
         const testArr = new Uint8Array(buffer.slice(0, sampleSize));
@@ -1829,121 +1686,6 @@ class MDViewerStandalone {
         }
         
         return score;
-=======
-        // 分析更多内容进行编码检测
-        const sampleSize = Math.min(4096, buffer.byteLength);
-        const testArr = new Uint8Array(buffer.slice(0, sampleSize));
-        
-        // 使用更严格的 UTF-8 验证
-        if (this.isValidUtf8(testArr)) {
-            return 'utf-8';
-        }
-        
-        // 检测是否可能是 GBK/GB2312
-        if (this.looksLikeGbk(testArr)) {
-            return 'gbk';
-        }
-        
-        // 默认 UTF-8
-        return 'utf-8';
-    }
-    
-    /**
-     * 严格验证是否为有效的 UTF-8 编码
-     * UTF-8 编码规则：
-     * - 0xxxxxxx: ASCII (0-127)
-     * - 110xxxxx 10xxxxxx: 2字节 (128-2047)
-     * - 1110xxxx 10xxxxxx 10xxxxxx: 3字节 (2048-65535)
-     * - 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx: 4字节 (65536+)
-     */
-    isValidUtf8(arr) {
-        let i = 0;
-        let hasMultiByte = false;
-        
-        while (i < arr.length) {
-            const byte = arr[i];
-            
-            if (byte <= 0x7F) {
-                // ASCII
-                i++;
-            } else if ((byte & 0xE0) === 0xC0) {
-                // 2字节序列: 110xxxxx
-                if (i + 1 >= arr.length) return false;
-                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
-                // 检查过长编码 (overlong encoding)
-                if ((byte & 0x1E) === 0) return false;
-                hasMultiByte = true;
-                i += 2;
-            } else if ((byte & 0xF0) === 0xE0) {
-                // 3字节序列: 1110xxxx
-                if (i + 2 >= arr.length) return false;
-                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
-                if ((arr[i + 2] & 0xC0) !== 0x80) return false;
-                // 检查过长编码
-                if (byte === 0xE0 && (arr[i + 1] & 0x20) === 0) return false;
-                hasMultiByte = true;
-                i += 3;
-            } else if ((byte & 0xF8) === 0xF0) {
-                // 4字节序列: 11110xxx
-                if (i + 3 >= arr.length) return false;
-                if ((arr[i + 1] & 0xC0) !== 0x80) return false;
-                if ((arr[i + 2] & 0xC0) !== 0x80) return false;
-                if ((arr[i + 3] & 0xC0) !== 0x80) return false;
-                // 检查过长编码
-                if (byte === 0xF0 && (arr[i + 1] & 0x30) === 0) return false;
-                hasMultiByte = true;
-                i += 4;
-            } else {
-                // 非法的 UTF-8 起始字节
-                return false;
-            }
-        }
-        
-        // 如果只有 ASCII，也是有效的 UTF-8
-        return true;
-    }
-    
-    /**
-     * 启发式检测是否像 GBK 编码
-     * GBK 双字节字符范围：
-     * - 第一字节: 0x81-0xFE
-     * - 第二字节: 0x40-0xFE (排除 0x7F)
-     */
-    looksLikeGbk(arr) {
-        let gbkPairs = 0;
-        let invalidPairs = 0;
-        let i = 0;
-        
-        while (i < arr.length) {
-            const byte = arr[i];
-            
-            if (byte <= 0x7F) {
-                // ASCII
-                i++;
-            } else if (byte >= 0x81 && byte <= 0xFE) {
-                // 可能是 GBK 双字节的第一个字节
-                if (i + 1 < arr.length) {
-                    const nextByte = arr[i + 1];
-                    if ((nextByte >= 0x40 && nextByte <= 0x7E) || 
-                        (nextByte >= 0x80 && nextByte <= 0xFE)) {
-                        gbkPairs++;
-                        i += 2;
-                    } else {
-                        invalidPairs++;
-                        i++;
-                    }
-                } else {
-                    i++;
-                }
-            } else {
-                invalidPairs++;
-                i++;
-            }
-        }
-        
-        // 如果有 GBK 字符对且没有太多无效对，则认为是 GBK
-        return gbkPairs > 0 && invalidPairs <= gbkPairs * 0.1;
->>>>>>> xinxun/main
     }
     
     // 解码文件内容
@@ -2158,12 +1900,9 @@ class MDViewerStandalone {
             console.warn('[Preview] Mermaid 未定义！');
         }
         
-<<<<<<< HEAD
-=======
         // 渲染 PlantUML 图表
         this.renderPlantUML();
         
->>>>>>> xinxun/main
         // 渲染数学公式
         if (typeof renderMathInElement !== 'undefined') {
             renderMathInElement(this.preview, {
@@ -2655,8 +2394,6 @@ class MDViewerStandalone {
         localStorage.setItem('md-viewer-toc-visible', 'false');
     }
     
-<<<<<<< HEAD
-=======
     // 渲染 PlantUML 图表
     renderPlantUML() {
         const plantumlElements = this.preview.querySelectorAll('.plantuml');
@@ -3484,7 +3221,6 @@ ${this.getExportHtmlContent()}
         }
     }
     
->>>>>>> xinxun/main
     // 更新目录内容
     updateToc() {
         if (!this.tocContent) return;
@@ -4247,28 +3983,16 @@ ${this.getExportHtmlContent()}
                 theme: newTheme === 'dark' ? 'dark' : 'default',
                 securityLevel: 'loose',
                 flowchart: {
-<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小，避免小图表被拉伸
-=======
-                    useMaxWidth: true,
->>>>>>> xinxun/main
                     htmlLabels: true,
                     curve: 'basis'
                 },
                 sequence: {
-<<<<<<< HEAD
                     useMaxWidth: false,  // 使用自然大小
                     wrap: true
                 },
                 gantt: {
                     useMaxWidth: false   // 使用自然大小
-=======
-                    useMaxWidth: true,
-                    wrap: true
-                },
-                gantt: {
-                    useMaxWidth: true
->>>>>>> xinxun/main
                 }
             });
             // 如果当前有打开的文件，重新渲染
@@ -4324,11 +4048,6 @@ ${this.getExportHtmlContent()}
         this.zoomOut = document.getElementById('zoomOut');
         this.zoomReset = document.getElementById('zoomReset');
         this.zoomLevel = document.getElementById('zoomLevel');
-<<<<<<< HEAD
-        this.downloadSVG = document.getElementById('downloadSVG');
-        this.downloadPNG = document.getElementById('downloadPNG');
-=======
->>>>>>> xinxun/main
         
         // 检查元素是否存在
         if (!this.zoomModal) console.error('[Zoom] 错误: diagramZoomModal 元素未找到!');
@@ -4338,11 +4057,8 @@ ${this.getExportHtmlContent()}
         if (!this.zoomOut) console.error('[Zoom] 错误: zoomOut 元素未找到!');
         if (!this.zoomReset) console.error('[Zoom] 错误: zoomReset 元素未找到!');
         if (!this.zoomLevel) console.error('[Zoom] 错误: zoomLevel 元素未找到!');
-<<<<<<< HEAD
         if (!this.downloadSVG) console.error('[Zoom] 错误: downloadSVG 元素未找到!');
         if (!this.downloadPNG) console.error('[Zoom] 错误: downloadPNG 元素未找到!');
-=======
->>>>>>> xinxun/main
         
         this.currentZoomScale = 1;
         this.currentDiagram = null;
@@ -4380,17 +4096,6 @@ ${this.getExportHtmlContent()}
             this.zoomReset.addEventListener('click', () => this.resetZoom());
         }
         
-<<<<<<< HEAD
-        // 下载按钮
-        if (this.downloadSVG) {
-            this.downloadSVG.addEventListener('click', () => this.downloadDiagramAsSVG());
-        }
-        if (this.downloadPNG) {
-            this.downloadPNG.addEventListener('click', () => this.downloadDiagramAsPNG());
-        }
-        
-=======
->>>>>>> xinxun/main
         // 键盘快捷键
         document.addEventListener('keydown', (e) => {
             if (!this.zoomModal || !this.zoomModal.classList.contains('show')) return;
@@ -4557,11 +4262,8 @@ ${this.getExportHtmlContent()}
     
     // 调整缩放
     adjustZoom(delta) {
-<<<<<<< HEAD
         this.currentZoomScale = Math.max(0.5, Math.min(20, this.currentZoomScale + delta));
-=======
         this.currentZoomScale = Math.max(0.5, Math.min(10, this.currentZoomScale + delta));
->>>>>>> xinxun/main
         this.updateZoomTransform();
     }
     
@@ -4625,7 +4327,6 @@ ${this.getExportHtmlContent()}
         
         console.log(`[Zoom] ✅ 成功绑定 ${diagrams.length} 个图表的事件`);
     }
-<<<<<<< HEAD
     
     // 下载图表为 SVG
     downloadDiagramAsSVG() {
@@ -4792,8 +4493,6 @@ ${this.getExportHtmlContent()}
             this.showToast('PNG 下载失败', 'error');
         }
     }
-=======
->>>>>>> xinxun/main
 }
 
 // 初始化应用
