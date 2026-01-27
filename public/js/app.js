@@ -33,12 +33,9 @@ class MDViewer {
     
     // 初始化 Marked 配置
     initMarked() {
-<<<<<<< HEAD
-=======
         // PlantUML 服务器配置
         this.plantumlServer = 'https://www.plantuml.com/plantuml';
         
->>>>>>> xinxun/main
         // 配置 marked
         marked.setOptions({
             gfm: true,
@@ -62,8 +59,6 @@ class MDViewer {
         // 自定义渲染器
         const renderer = new marked.Renderer();
         
-<<<<<<< HEAD
-=======
         // Mermaid 代码预处理 - 自动修复常见语法问题
         this.preprocessMermaid = (code) => {
             let result = code;
@@ -202,7 +197,6 @@ class MDViewer {
             return `<pre><code class="hljs language-${language || 'plaintext'}">${highlighted}</code></pre>`;
         };
         
->>>>>>> xinxun/main
         // 任务列表支持
         renderer.listitem = (text) => {
             if (text.startsWith('<input')) {
@@ -248,8 +242,6 @@ class MDViewer {
             document.getElementById('showSidebar').style.display = 'none';
         });
         
-<<<<<<< HEAD
-=======
         // 查看功能演示按钮
         const showDemoBtn = document.getElementById('showDemoBtn');
         if (showDemoBtn) {
@@ -258,7 +250,6 @@ class MDViewer {
             });
         }
         
->>>>>>> xinxun/main
         // 刷新文件列表
         document.getElementById('refreshBtn').addEventListener('click', () => {
             this.loadFiles();
@@ -277,12 +268,9 @@ class MDViewer {
         // 保存
         this.saveBtn.addEventListener('click', () => this.saveFile());
         
-<<<<<<< HEAD
-=======
         // 导出功能
         this.initExportFeature();
         
->>>>>>> xinxun/main
         // 编辑器内容变化
         this.editor.addEventListener('input', () => {
             this.isModified = true;
@@ -592,8 +580,6 @@ class MDViewer {
         this.preview.querySelectorAll('pre code').forEach((block) => {
             hljs.highlightElement(block);
         });
-<<<<<<< HEAD
-=======
         
         // 渲染 Mermaid 图表
         if (typeof mermaid !== 'undefined') {
@@ -661,7 +647,6 @@ class MDViewer {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
->>>>>>> xinxun/main
     }
     
     // 主题切换
@@ -712,8 +697,6 @@ class MDViewer {
             }, 300);
         }, 3000);
     }
-<<<<<<< HEAD
-=======
     
     /**
      * 显示功能演示文档
@@ -1143,7 +1126,6 @@ async function hello() {
             this.showToast('HTML导出失败: ' + error.message, 'error');
         }
     }
->>>>>>> xinxun/main
 }
 
 // 初始化应用
